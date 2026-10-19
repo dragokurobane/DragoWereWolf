@@ -2,7 +2,7 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 
 const PAGES = [
-  "authPage",
+  "loadingPage",
   "homePage",
   "browsePage",
   "createPage",
@@ -49,7 +49,9 @@ let me = null;
 let socket = null;
 let room = null;
 let publicRoomList = [];
-let registerMode = false;
+let currentPage = "loadingPage";
+let pairPick = [];
+let pairKey = "";
 let channel = "public";
 let selectedAvatar = AVATARS[0];
 let selectedColor = COLORS[0];
@@ -75,27 +77,17 @@ function toast(text) {
 }
 
 function showPage(id) {
+  currentPage = id;
   for (const page of PAGES) {
     $("#" + page).hidden = page !== id;
   }
   if (id === "avatarPage" && me) {
     selectedAvatar = me.avatar;
     selectedColor = me.color;
+    $("#nameInput").value = me.name;
     renderAvatar();
   }
   if (id === "browsePage") renderRooms();
-}
-
-async function api(path, data) {
-  const response = await fetch("/api/" + path, {
-    method: data === undefined ? "GET" : "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: data === undefined ? undefined : JSON.stringify(data)
-  });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "มีบางอย่างผิดพลาด");
-  return result;
 }
 
 function emit(event, data = {}) {
@@ -118,33 +110,123 @@ async function attempt(task) {
   }
 }
 
+const TOKEN_SUFFIX = new URLSearchParams(location.search).get("as") || "";
+const TOKEN_KEY = "ww_token" + TOKEN_SUFFIX;
+const PROFILE_KEY = "ww_profile" + TOKEN_SUFFIX;
+let memoryToken = "";
+
+function randomToken() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function getToken() {
+  try {
+    let token = localStorage.getItem(TOKEN_KEY);
+    if (!/^[A-Za-z0-9_-]{24,64}$/.test(token || "")) {
+      token = randomToken();
+      localStorage.setItem(TOKEN_KEY, token);
+    }
+    return token;
+  } catch {
+    return memoryToken ||= randomToken();
+  }
+}
+
+function loadProfile() {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveProfile() {
+  if (!me) return;
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: me.name, avatar: me.avatar, color: me.color }));
+  } catch {}
+}
+
 function renderAccount() {
   if (!me) {
-    $("#account").innerHTML = '<small>เกมหมาป่า</small>';
+    $("#account").innerHTML = "";
     return;
   }
+  saveProfile();
   $("#account").innerHTML = `
-    <div class="avatar small" style="--avatar-color:${esc(me.color)}">${esc(me.avatar)}</div>
-    <span>${esc(me.name)}</span>
-    <button id="logout" class="secondary">ออกจากระบบ</button>
+    <button id="profileButton" class="secondary" type="button">
+      <span class="avatar small" style="--avatar-color:${esc(me.color)}">${esc(me.avatar)}</span>
+      <span>${esc(me.name)}</span>
+    </button>
   `;
-  $("#logout").onclick = () => attempt(async () => {
-    if (room && !["lobby", "ended"].includes(room.phase)) {
-      if (!confirm("เกมยังเล่นต่อแม้คุณออกจากระบบ จะออกไหม?")) return;
-    }
-    await api("logout", {});
-    socket?.disconnect();
-    me = null;
-    room = null;
-    $("#connection").hidden = true;
-    renderAccount();
-    showPage("authPage");
-  });
+  $("#homeName").textContent = `สวัสดี ${me.name}`;
+  $("#profileButton").onclick = () => {
+    if (room) return toast("ออกจากห้องก่อน จึงจะแก้ชื่อและรูปได้");
+    showPage("avatarPage");
+  };
+}
+
+// ---------- แจ้งเตือนกลางหน้าจอ ----------
+const ANNOUNCE_ICONS = { death: "💀", vote: "⚖️", tie: "🤝", safe: "🌅", revive: "✨", phase: "🌙", end: "🏁" };
+let announceQueue = [];
+let announceBusy = false;
+let announceTimer;
+
+function pushAnnounce(item) {
+  if (item.kind === "phase" && (announceBusy || announceQueue.length)) return;
+  if (announceQueue.length >= 6) announceQueue.shift();
+  announceQueue.push(item);
+  runAnnounce();
+}
+
+function runAnnounce() {
+  if (announceBusy) return;
+  const item = announceQueue.shift();
+  if (!item) return;
+  announceBusy = true;
+
+  const layer = $("#announceLayer");
+  layer.innerHTML = `
+    <div class="announce-card kind-${esc(item.kind)}">
+      <div class="announce-icon">${ANNOUNCE_ICONS[item.kind] || "📣"}</div>
+      <h2>${esc(item.title)}</h2>
+      ${item.players?.length ? `<div class="announce-players">${item.players.map(p => `
+        <div class="announce-player">
+          <div class="avatar" style="--avatar-color:${esc(p.color)}">${esc(p.avatar)}</div>
+          <b>${esc(p.name)}</b>
+          ${p.roleName ? `<small>บทบาท: ${esc(p.roleName)}</small>` : ""}
+          ${p.note ? `<small>${esc(p.note)}</small>` : ""}
+        </div>`).join("")}</div>` : ""}
+      ${item.text ? `<p class="muted" style="margin:6px 0 0">${esc(item.text)}</p>` : ""}
+    </div>
+  `;
+  layer.hidden = false;
+
+  const done = () => {
+    clearTimeout(announceTimer);
+    layer.hidden = true;
+    layer.innerHTML = "";
+    announceBusy = false;
+    setTimeout(runAnnounce, 250);
+  };
+  layer.firstElementChild.onclick = done;
+  announceTimer = setTimeout(done, item.kind === "phase" ? 2200 : item.kind === "end" ? 7000 : 4500);
+}
+
+function clearAnnounce() {
+  announceQueue = [];
+  clearTimeout(announceTimer);
+  announceBusy = false;
+  $("#announceLayer").hidden = true;
+  $("#announceLayer").innerHTML = "";
 }
 
 function connect() {
+  const token = getToken();
   socket?.disconnect();
-  socket = io();
+  socket = io({ auth: cb => cb({ token, ...loadProfile() }) });
 
   socket.on("connect", () => { $("#connection").hidden = true; });
   socket.on("disconnect", () => {
@@ -155,17 +237,24 @@ function connect() {
     $("#connection").hidden = false;
     $("#connection").textContent = error.message;
   });
+  socket.on("me", user => {
+    me = user;
+    renderAccount();
+    if (currentPage === "loadingPage") showPage("homePage");
+  });
   socket.on("rooms", data => {
     publicRoomList = data;
     renderRooms();
   });
+  socket.on("announce", pushAnnounce);
   socket.on("state", data => {
     const changedRoom = room?.id !== data?.id;
     room = data;
     if (!room) {
       actionKey = "";
       lastMessagesKey = "";
-      showPage("homePage");
+      clearAnnounce();
+      if (["roomPage", "loadingPage"].includes(currentPage)) showPage("homePage");
       return;
     }
     if (changedRoom) {
@@ -175,6 +264,7 @@ function connect() {
     }
     const self = room.players.find(p => p.id === me.id);
     if (self) {
+      me.name = self.name;
       me.avatar = self.avatar;
       me.color = self.color;
       renderAccount();
@@ -183,31 +273,6 @@ function connect() {
     renderRoom();
   });
 }
-
-$("#toggleAuth").onclick = () => {
-  registerMode = !registerMode;
-  $("#authTitle").textContent = registerMode ? "สมัครสมาชิก" : "เข้าสู่ระบบ";
-  $("#authSubmit").textContent = registerMode ? "สมัครสมาชิก" : "ล็อกอิน";
-  $("#toggleAuth").textContent = registerMode ? "มีบัญชีแล้ว? ล็อกอิน" : "ยังไม่มีบัญชี? สมัครสมาชิก";
-  $("#authPassword").autocomplete = registerMode ? "new-password" : "current-password";
-};
-
-$("#authForm").onsubmit = async event => {
-  event.preventDefault();
-  $("#authSubmit").disabled = true;
-  await attempt(async () => {
-    const result = await api(registerMode ? "register" : "login", {
-      name: $("#authName").value,
-      password: $("#authPassword").value
-    });
-    me = result.user;
-    $("#authPassword").value = "";
-    renderAccount();
-    showPage("homePage");
-    connect();
-  });
-  $("#authSubmit").disabled = false;
-};
 
 $$("[data-page]").forEach(button => {
   button.onclick = () => showPage(button.dataset.page);
@@ -290,6 +355,24 @@ $("#saveAvatar").onclick = () => attempt(async () => {
   me = result.user;
   renderAccount();
   toast("บันทึกแล้ว");
+});
+
+$("#nameForm").onsubmit = event => {
+  event.preventDefault();
+  attempt(async () => {
+    const result = await emit("rename", { name: $("#nameInput").value });
+    me = result.user;
+    renderAccount();
+    toast("เปลี่ยนชื่อแล้ว");
+  });
+};
+
+$("#randomName").onclick = () => attempt(async () => {
+  const result = await emit("rename", { random: true });
+  me = result.user;
+  $("#nameInput").value = me.name;
+  renderAccount();
+  toast("สุ่มชื่อใหม่แล้ว");
 });
 
 $("#copyCode").onclick = () => attempt(async () => {
@@ -468,9 +551,115 @@ function renderSettings() {
   };
 }
 
+// ---------- เลือกเป้าหมายด้วยการแตะการ์ดผู้เล่น ----------
+function interaction() {
+  if (!room || !room.me.alive) return null;
+  const m = room.me;
+  const alive = room.players.filter(p => p.alive);
+  const dead = room.players.filter(p => !p.alive && !p.left);
+  const ids = list => new Set(list.map(p => p.id));
+
+  if (room.phase === "vote") {
+    return {
+      type: "vote",
+      title: "โหวตคนที่สงสัย",
+      help: "แตะการ์ดผู้เล่นเพื่อโหวต แตะซ้ำเพื่อยกเลิก เปลี่ยนได้จนกว่าจะหมดเวลา หรือทุกคนโหวตครบ",
+      targets: ids(alive),
+      choice: m.vote,
+      counts: room.tally || {},
+      skipCount: room.skipCount || 0,
+      progress: room.progress
+    };
+  }
+  if (room.phase !== "night") return null;
+
+  const role = m.role;
+  const base = (title, help, list, counts = null) => ({
+    type: "action", title, help, targets: ids(list), choice: m.choice, counts
+  });
+
+  if (role === "cupid" && room.round === 1) {
+    const key = room.id + ":" + room.round;
+    if (key !== pairKey) {
+      pairKey = key;
+      pairPick = Array.isArray(m.choice) ? [...m.choice] : [];
+    }
+    return {
+      type: "pair",
+      title: "เลือกคู่รัก 2 คน",
+      help: "แตะการ์ด 2 ใบแล้วกดยืนยัน เลือกตัวเองได้ ถ้าคนหนึ่งออก อีกคนจะออกตาม เปลี่ยนได้จนกว่าจะหมดเวลา",
+      targets: ids(alive),
+      choice: m.choice
+    };
+  }
+  if (role === "priest") {
+    return m.priestUsed || !dead.length ? null : base("เลือกคนที่จะชุบชีวิต", "ใช้ได้ครั้งเดียว เปลี่ยนใจหรือข้ามได้จนกว่าจะหมดเวลา", dead);
+  }
+  if (role === "police") {
+    return m.policeUsed ? null : base("เลือกคนที่จะจัดการ", "ใช้ได้ครั้งเดียว ถ้าไม่ใช่หมาป่า คุณจะออกจากเกมด้วย (ข้ามได้ ไม่เสียสิทธิ์)", alive.filter(p => p.id !== me.id));
+  }
+  if (m.faction === "wolf") {
+    const targets = role === "loneWolf" ? alive.filter(p => p.id !== me.id) : alive.filter(p => p.faction !== "wolf");
+    const help = role === "loneWolf"
+      ? "คุณไม่รู้ว่าใครเป็นพวก อาจเลือกโดนหมาป่าด้วยกันเอง"
+      : role === "alpha"
+        ? "โหวตของคุณนับ 2 คะแนน เลขบนการ์ดคือคะแนนของฝูง"
+        : "เลขบนการ์ดคือคะแนนของฝูง คุยในแชทหมาป่าก่อนเลือก";
+    return base("เลือกคนที่จะกำจัด", help, targets, role === "loneWolf" ? null : room.tally);
+  }
+  if (role === "doctor") return base("เลือกคนที่จะช่วย", "เลือกตัวเองได้ แต่เลือกคนเดิมติดกันไม่ได้", alive.filter(p => p.id !== m.lastHeal));
+  if (role === "seer") return base("เลือกคนที่จะตรวจ", "ผลจะขึ้นในโน้ตลับตอนจบคืน (ลูกครึ่งจะแสดงว่าไม่ใช่หมาป่า)", alive.filter(p => p.id !== me.id));
+  if (role === "knight") return m.knightUsed ? null : base("เลือกคนที่จะปกป้อง", "ปกป้องสำเร็จแล้วพลังจะหมด", alive);
+  return null;
+}
+
+function pickTarget(id) {
+  const I = interaction();
+  if (!I || !I.targets.has(id)) return;
+
+  if (I.type === "pair") {
+    const index = pairPick.indexOf(id);
+    if (index >= 0) pairPick.splice(index, 1);
+    else {
+      pairPick.push(id);
+      if (pairPick.length > 2) pairPick.shift();
+    }
+    renderPlayers();
+    renderAction();
+    return;
+  }
+  submitChoice(I, I.choice === id ? null : id);
+}
+
+// value: null = ยกเลิก, "skip" = ข้าม, อื่น ๆ = id เป้าหมาย
+function submitChoice(I, value) {
+  if (I.type === "vote") return attempt(() => emit("vote", { target: value }));
+  return attempt(() => emit("action", value === null ? { clear: true } : value === "skip" ? { skip: true } : { target: value }));
+}
+
+$("#players").onclick = event => {
+  const cardEl = event.target.closest("[data-pid]");
+  if (cardEl) pickTarget(cardEl.dataset.pid);
+};
+$("#players").onkeydown = event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const cardEl = event.target.closest("[data-pid]");
+  if (cardEl) {
+    event.preventDefault();
+    pickTarget(cardEl.dataset.pid);
+  }
+};
+
 function renderPlayers() {
-  $("#players").innerHTML = room.players.map(player => `
-    <div class="player ${player.alive ? "" : "out"} ${player.id === me.id ? "self" : ""}">
+  const I = interaction();
+  $("#players").innerHTML = room.players.map(player => {
+    const selectable = Boolean(I && I.targets.has(player.id));
+    const selected = I ? (I.type === "pair" ? pairPick.includes(player.id) : I.choice === player.id) : false;
+    const count = I?.counts?.[player.id] || 0;
+    return `
+    <div class="player ${player.alive ? "" : "out"} ${player.id === me.id ? "self" : ""} ${selectable ? "selectable" : ""} ${selected ? "selected" : ""}"
+         data-pid="${esc(player.id)}" ${selectable ? 'role="button" tabindex="0"' : ""}>
+      ${count ? `<span class="count-badge" title="จำนวนคะแนน">${count}</span>` : ""}
       <div class="avatar" style="--avatar-color:${esc(player.color)}">${esc(player.avatar)}</div>
       <div class="player-name">${esc(player.name)}</div>
       <div class="row" style="justify-content:center;gap:5px">
@@ -482,8 +671,9 @@ function renderPlayers() {
       <small class="${player.online ? "good" : "bad"}">${player.online ? "ออนไลน์" : "ออฟไลน์"}</small>
       ${room.phase === "lobby" ? `<small class="${player.ready ? "good" : ""}">${player.ready ? "พร้อมแล้ว" : "ยังไม่พร้อม"}</small>` : `<small>${player.left ? "ออกจากห้องแล้ว" : player.alive ? "ยังอยู่" : "ออกแล้ว"}</small>`}
       ${player.roleName ? `<small>${esc(player.roleName)}</small>` : ""}
-    </div>
-  `).join("");
+      ${selected ? '<small class="pick-note">✓ ที่คุณเลือก</small>' : ""}
+    </div>`;
+  }).join("");
 }
 
 function renderRole() {
@@ -501,6 +691,12 @@ function renderRole() {
           <strong>${esc(room.me.clue.text)}</strong>
           <small>จะบอกคนอื่นหรือเก็บไว้ก็ได้</small>
         </div>
+      ` : room.me.faction === "wolf" && room.round >= 1 ? `
+        <div class="clue">
+          <small>วันที่ ${room.round}</small>
+          <strong>คุณไม่ได้รับคำ</strong>
+          <small>ฟังคำใบ้ของคนอื่นแล้วแกล้งทำเป็นรู้ อย่าให้ใครจับได้</small>
+        </div>
       ` : ""}
     `;
   }
@@ -509,155 +705,65 @@ function renderRole() {
   $("#notes").innerHTML = room.me.notes.map(note => `<li>${esc(note)}</li>`).join("");
 }
 
-function targetOptions(players) {
-  return players.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
-}
-
 function renderAction() {
   const panel = $("#actionPanel");
-  const key = JSON.stringify({
-    id: room.id,
-    phase: room.phase,
-    round: room.round,
-    role: room.me.role,
-    alive: room.me.alive,
-    acted: room.me.acted,
-    voted: room.me.voted,
-    knightUsed: room.me.knightUsed,
-    policeUsed: room.me.policeUsed,
-    priestUsed: room.me.priestUsed,
-    lastHeal: room.me.lastHeal,
-    players: room.players.map(p => [p.id, p.alive, p.left])
-  });
-
-  if (key === actionKey) return;
-  actionKey = key;
-
   panel.hidden = true;
   panel.innerHTML = "";
 
   if (!room.me.alive || ["lobby", "ended"].includes(room.phase)) return;
 
-  const alive = room.players.filter(p => p.alive);
-  const dead = room.players.filter(p => !p.alive && !p.left);
-
-  function showWaiting(text) {
+  const show = html => {
     panel.hidden = false;
-    panel.innerHTML = `<h3>รอช่วงถัดไป</h3><p class="muted">${esc(text)}</p>`;
-  }
+    panel.innerHTML = html;
+  };
+  const nameOf = id => room.players.find(p => p.id === id)?.name || "?";
+  const I = interaction();
 
-  function showTargetAction(title, targets, help) {
-    panel.hidden = false;
-    panel.innerHTML = `
-      <h3>${esc(title)}</h3>
+  if (I) {
+    let status;
+    if (I.type === "pair") {
+      status = Array.isArray(I.choice)
+        ? `ยืนยันแล้ว: ${I.choice.map(nameOf).join(" + ")}`
+        : I.choice === "skip" ? "ข้ามแล้ว" : pairPick.length ? `เลือกไว้: ${pairPick.map(nameOf).join(" + ")} (ยังไม่ยืนยัน)` : "ยังไม่ได้เลือก";
+    } else {
+      status = I.choice === "skip" ? "ข้ามแล้ว" : I.choice ? `เลือกอยู่: ${nameOf(I.choice)}` : "ยังไม่ได้เลือก";
+    }
+    const progress = I.progress ? `<small>โหวตแล้ว ${I.progress.done}/${I.progress.total} คน</small>` : "";
+
+    show(`
+      <h3>${esc(I.title)}</h3>
       <div class="stack">
-        ${targets.length ? `<select id="actionTarget">${targetOptions(targets)}</select>` : '<p class="muted">ยังไม่มีให้เลือก</p>'}
-        <button id="submitAction" ${targets.length ? "" : "disabled"}>ยืนยัน (เปลี่ยนไม่ได้)</button>
-        <small>${esc(help)}</small>
+        <p class="${I.choice ? "good" : "muted"}" style="margin:0">${esc(status)}</p>
+        <div class="row">
+          ${I.type === "pair" ? `<button id="pairConfirm" ${pairPick.length === 2 ? "" : "disabled"}>ยืนยันคู่รัก</button>` : ""}
+          <button id="skipButton" class="${I.choice === "skip" ? "success" : "secondary"}">${I.choice === "skip" ? "✓ ข้ามอยู่ (แตะเพื่อยกเลิก)" : "ข้าม"}${I.type === "vote" ? ` (${I.skipCount})` : ""}</button>
+        </div>
+        ${progress}
+        <small>${esc(I.help)}</small>
       </div>
-    `;
-    $("#submitAction").onclick = () => attempt(() => emit("action", { target: $("#actionTarget").value }));
+    `);
+    $("#skipButton").onclick = () => submitChoice(I, I.choice === "skip" ? null : "skip");
+    if (I.type === "pair") {
+      $("#pairConfirm").onclick = () => attempt(() => emit("action", { targets: pairPick }));
+    }
+    return;
   }
 
   if (room.phase === "day") {
-    panel.hidden = false;
-    panel.innerHTML = `
+    show(`
       <h3>ช่วงคุยกัน</h3>
       <p class="muted">${room.round === 1 ? "วันแรกยังโหวตไม่ได้ " : ""}คุยกัน ถามกัน แล้วดูว่าใครมีพิรุธ ระวังตัวตลกที่อยากโดนโหวต</p>
-    `;
+    `);
     return;
   }
 
-  if (room.phase === "vote") {
-    panel.hidden = false;
-    if (room.me.voted) {
-      panel.innerHTML = '<h3 class="good">โหวตแล้ว</h3>';
-      return;
-    }
-    panel.innerHTML = `
-      <h3>โหวตคนที่สงสัย</h3>
-      <div class="stack">
-        <select id="voteTarget">
-          <option value="skip">ไม่โหวต</option>
-          ${targetOptions(alive)}
-        </select>
-        <button id="submitVote">ยืนยัน (เปลี่ยนไม่ได้)</button>
-      </div>
-    `;
-    $("#submitVote").onclick = () => attempt(() => emit("vote", { target: $("#voteTarget").value }));
-    return;
-  }
-
-  if (room.me.acted) {
-    panel.hidden = false;
-    panel.innerHTML = '<h3 class="good">เลือกแล้ว รอตอนเช้า</h3>';
-    return;
-  }
-
-  const role = room.me.role;
-  if (role === "cupid" && room.round === 1) {
-    panel.hidden = false;
-    panel.innerHTML = `
-      <h3>เลือกคู่รัก 2 คน</h3>
-      <p class="muted">เลือกตัวเองได้ ถ้าคนหนึ่งออก อีกคนจะออกตาม</p>
-      <div class="stack">
-        <select id="loverOne">${targetOptions(alive)}</select>
-        <select id="loverTwo">${targetOptions(alive)}</select>
-        <button id="submitAction">ยืนยันคู่รัก</button>
-      </div>
-    `;
-    if (alive.length > 1) $("#loverTwo").selectedIndex = 1;
-    $("#submitAction").onclick = () => attempt(() => emit("action", { targets: [$("#loverOne").value, $("#loverTwo").value] }));
-    return;
-  }
-
-  if (role === "priest") {
-    if (room.me.priestUsed) {
-      showWaiting("ใช้ชุบชีวิตไปแล้ว");
-      return;
-    }
-    showTargetAction("เลือกคนที่จะชุบชีวิต", dead, "ใช้ได้ครั้งเดียว ไม่อยากใช้ก็รอให้หมดเวลา");
-    return;
-  }
-
-  if (role === "police") {
-    if (room.me.policeUsed) {
-      showWaiting("ใช้พลังตำรวจไปแล้ว");
-      return;
-    }
-    showTargetAction("เลือกคนที่จะจัดการ", alive.filter(p => p.id !== me.id), "ใช้ได้ครั้งเดียว ถ้าไม่ใช่หมาป่า คุณจะออกจากเกมด้วย");
-    return;
-  }
-
-  if (room.me.faction === "wolf") {
-    const targets = role === "loneWolf" ? alive.filter(p => p.id !== me.id) : alive.filter(p => p.faction !== "wolf");
-    const help = role === "loneWolf" ? "คุณไม่รู้ว่าใครเป็นพวก อาจเลือกโดนหมาป่าด้วยกันเอง" : role === "alpha" ? "โหวตของคุณนับ 2 คะแนน" : "คุยกับฝูงในแชทหมาป่าก่อนเลือก";
-    showTargetAction("เลือกคนที่จะกำจัด", targets, help);
-    return;
-  }
-
-  if (role === "doctor") {
-    showTargetAction("เลือกคนที่จะช่วย", alive.filter(p => p.id !== room.me.lastHeal), "เลือกตัวเองได้ แต่เลือกคนเดิมติดกันไม่ได้");
-    return;
-  }
-  if (role === "seer") {
-    showTargetAction("เลือกคนที่จะตรวจ", alive.filter(p => p.id !== me.id), "ผลจะขึ้นในโน้ตลับตอนจบคืน (ลูกครึ่งจะแสดงว่าไม่ใช่หมาป่า)");
-    return;
-  }
-  if (role === "knight") {
-    if (room.me.knightUsed) {
-      showWaiting("ใช้พลังอัศวินไปแล้ว");
-      return;
-    }
-    showTargetAction("เลือกคนที่จะปกป้อง", alive, "ปกป้องสำเร็จแล้วพลังจะหมด");
-    return;
-  }
-  if (role === "jester") {
-    showWaiting("เป้าหมายคือให้คนโหวตคุณออกตอนกลางวัน");
-    return;
-  }
-
-  showWaiting("คืนนี้ไม่มีอะไรให้ทำ รอตอนเช้า");
+  const m = room.me;
+  let text = "คืนนี้ไม่มีอะไรให้ทำ รอตอนเช้า";
+  if (m.role === "priest") text = m.priestUsed ? "ใช้ชุบชีวิตไปแล้ว" : "ยังไม่มีผู้ออกจากเกมให้ชุบชีวิต";
+  else if (m.role === "police" && m.policeUsed) text = "ใช้พลังตำรวจไปแล้ว";
+  else if (m.role === "knight" && m.knightUsed) text = "ใช้พลังอัศวินไปแล้ว";
+  else if (m.role === "jester") text = "เป้าหมายคือให้คนโหวตคุณออกตอนกลางวัน";
+  show(`<h3>รอช่วงถัดไป</h3><p class="muted">${esc(text)}</p>`);
 }
 
 function renderResult() {
@@ -748,17 +854,10 @@ function tick() {
 
 setInterval(tick, 250);
 
-async function boot() {
+function boot() {
   renderAccount();
-  try {
-    const result = await api("me");
-    me = result.user;
-    renderAccount();
-    showPage("homePage");
-    connect();
-  } catch {
-    showPage("authPage");
-  }
+  showPage("loadingPage");
+  connect();
 }
 
 boot();
