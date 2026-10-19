@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moonfall — Werewolf</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d19;
+      --panel: #121a2d;
+      --panel2: #19243c;
+      --line: #2a3753;
+      --text: #edf2ff;
+      --muted: #9aaaca;
+      --accent: #9a77ff;
+      --good: #55d9b2;
+      --bad: #ff8295;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 10% 0%, #38225488, transparent 48%),
+        radial-gradient(ellipse at 90% 40%, #17355a66, transparent 45%),
+        var(--bg);
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+    button, input, select { font: inherit; }
+    button {
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      padding: 11px 16px;
+      font-weight: 650;
+      transition: transform .15s, opacity .15s;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    button.secondary { background: var(--panel2); border-color: var(--line); }
+    button.danger { background: #842f49; }
+    button.success { background: #197964; }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #0c1425;
+      color: var(--text);
+      padding: 12px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input[type=checkbox] { width: auto; accent-color: var(--accent); }
+    label { display: grid; gap: 7px; color: var(--muted); font-size: 14px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(38px, 7vw, 68px); line-height: 1.06; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 17px; }
+    p { line-height: 1.7; }
+    small, .muted { color: var(--muted); }
+    [hidden] { display: none !important; }
+    .shell { width: min(1220px, 94%); margin: auto; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 23px 0;
+    }
+    .brand { font-weight: 850; letter-spacing: 2px; }
+    .brand span { color: var(--accent); }
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .between { justify-content: space-between; }
+    .stack { display: grid; gap: 14px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 23px;
+      background: linear-gradient(145deg, #172139ed, #10182be8);
+      box-shadow: 0 16px 50px #0002;
+    }
+    .hero { min-height: 340px; display: grid; align-content: center; padding: 45px 0; }
+    .eyebrow { font-size: 12px; color: #c0acff; letter-spacing: 4px; margin-bottom: 16px; }
+    .hero p { max-width: 650px; color: var(--muted); }
+    .auth { max-width: 450px; margin: 20px auto 60px; }
+    .menu { text-align: left; min-height: 155px; }
+    .menu b { display: block; margin: 14px 0 8px; font-size: 22px; }
+    .menu small { font-weight: 400; }
+    .menu-icon { font-size: 30px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 30px;
+      font-size: 12px;
+      background: #ffffff0c;
+      border: 1px solid var(--line);
+    }
+    .good { color: var(--good); }
+    .bad { color: var(--bad); }
+    .room-list { max-height: 480px; overflow-y: auto; display: grid; gap: 12px; padding-right: 4px; }
+    .room-item { padding: 17px; border-radius: 15px; background: #ffffff05; border: 1px solid var(--line); }
+    .check-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+    .game-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 350px;
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 30px;
+    }
+    .players { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; }
+    .player {
+      padding: 15px;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #ffffff04;
+      overflow-wrap: anywhere;
+    }
+    .player.out { opacity: .5; }
+    .player.self { border-color: var(--accent); }
+    .avatar {
+      width: 60px;
+      height: 60px;
+      display: grid;
+      place-items: center;
+      border-radius: 20px;
+      background: var(--avatar-color, #8b5cf6);
+      margin: 0 auto 9px;
+      font-size: 33px;
+    }
+    .avatar.small { width: 35px; height: 35px; font-size: 21px; border-radius: 11px; margin: 0; }
+    .player-name { font-weight: 700; margin-bottom: 5px; }
+    .player small { display: block; margin-top: 5px; }
+    .role-card { border-color: #7760ad; background: linear-gradient(140deg, #3e2b63, #15203b); }
+    .clue {
+      background: #0b1326;
+      border-left: 3px solid #c5a5ff;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+    }
+    .clue strong { display: block; font-size: 21px; margin-top: 6px; }
+    .timer { font-variant-numeric: tabular-nums; font-size: 27px; font-weight: 800; }
+    .chat-panel { position: sticky; top: 16px; }
+    .chat-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin: 13px 0; }
+    .chat-tabs button { font-size: 12px; padding: 7px 9px; }
+    .chat-tabs button.active { background: var(--accent); border-color: transparent; }
+    .messages {
+      height: 380px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      padding: 12px;
+      background: #0b1221;
+      border-radius: 12px;
+    }
+    .message { font-size: 14px; overflow-wrap: anywhere; }
+    .message b { color: #c6b0ff; }
+    .message.system { color: #95b4cd; font-size: 12px; }
+    .message time { font-size: 10px; color: var(--muted); margin-left: 6px; }
+    .message p { margin: 3px 0 0; white-space: pre-wrap; line-height: 1.5; }
+    .chat-form { display: flex; gap: 7px; margin-top: 12px; }
+    .chat-form input { min-width: 0; }
+    .notes { padding-left: 20px; font-size: 14px; color: #c9d5ee; line-height: 1.8; }
+    .avatar-choices, .color-choices { display: flex; gap: 10px; flex-wrap: wrap; }
+    .avatar-choices button { font-size: 29px; background: #ffffff08; }
+    .avatar-choices button.selected { outline: 2px solid var(--accent); }
+    .color-choices button { width: 43px; height: 43px; border-radius: 50%; }
+    .color-choices button.selected { outline: 3px solid white; outline-offset: 3px; }
+    .preview { font-size: 55px; width: 100px; height: 100px; border-radius: 30px; }
+    #toast {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 92vw;
+      padding: 14px 20px;
+      border-radius: 14px;
+      background: #2b3857;
+      box-shadow: 0 12px 50px #0008;
+      z-index: 20;
+    }
+    #connection { color: var(--bad); font-size: 12px; margin-bottom: 10px; }
+    footer { padding: 28px 0; color: var(--muted); font-size: 12px; }
+    @media (max-width: 850px) {
+      .game-layout { grid-template-columns: 1fr; }
+      .chat-panel { position: static; }
+      .grid3 { grid-template-columns: 1fr; }
+      .menu { min-height: 110px; }
+      .messages { height: 300px; }
+    }
+    @media (max-width: 540px) {
+      .grid2 { grid-template-columns: 1fr; }
+      .panel { padding: 17px; border-radius: 17px; }
+      header { align-items: flex-start; }
+      .brand { font-size: 14px; }
+      .hero { min-height: 250px; }
+      .players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">☾ MOON<span>FALL</span></div>
+      <div id="account" class="row"></div>
+    </header>
+
+    <div id="connection" hidden></div>
+
+    <main>
+      <section id="authPage">
+        <div class="hero">
+          <div class="eyebrow">A VILLAGE OF SECRETS</div>
+          <h1>เมื่อดวงจันทร์ขึ้น<br>ใครยังเป็นคนเดิม?</h1>
+          <p>รวมเพื่อนเข้าสู่หมู่บ้าน แบ่งปันเบาะแส จับพิรุธจากบทสนทนา และค้นหาหมาป่าก่อนจะสายเกินไป</p>
+        </div>
+
+        <form id="authForm" class="panel auth stack">
+          <h2 id="authTitle">เข้าสู่หมู่บ้าน</h2>
+          <label>
+            ชื่อผู้เล่น
+            <input id="authName" minlength="3" maxlength="24" autocomplete="username" required>
+          </label>
+          <label>
+            รหัสผ่าน
+            <input id="authPassword" type="password" minlength="8" autocomplete="current-password" required>
+          </label>
+          <button id="authSubmit">ล็อกอิน</button>
+          <button id="toggleAuth" class="secondary" type="button">ยังไม่มีบัญชี? สมัครสมาชิก</button>
+        </form>
+      </section>
+
+      <section id="homePage" hidden>
+        <div class="hero">
+          <div class="eyebrow">WELCOME TO MOONFALL</div>
+          <h1>คืนนี้<br>ไว้ใจใครได้บ้าง?</h1>
+          <p>เริ่มเกมกับเพื่อน สร้างกติกาหมู่บ้านของคุณ และเลือกตัวตนก่อนค่ำคืนมาถึง</p>
+        </div>
+
+        <div class="grid3">
+          <button class="panel menu" data-page="browsePage">
+            <span class="menu-icon">🌙</span>
+            <b>เริ่มเกม</b>
+            <small>เข้าด้วยเลขห้อง หรือเลือกห้องสาธารณะ</small>
+          </button>
+          <button class="panel menu" data-page="createPage">
+            <span class="menu-icon">🏡</span>
+            <b>สร้างห้อง</b>
+            <small>ตั้งค่าจำนวนคน บทบาท และช่วงเวลา</small>
+          </button>
+          <button class="panel menu" data-page="avatarPage">
+            <span class="menu-icon">🎭</span>
+            <b>แต่งตัวอวตาร</b>
+            <small>เลือกตัวละครและสีประจำตัว</small>
+          </button>
+        </div>
+      </section>
+
+      <section id="browsePage" hidden>
+        <div class="row between">
+          <h2>ค้นหาหมู่บ้าน</h2>
+          <button class="secondary" data-page="homePage">กลับ</button>
+        </div>
+
+        <div class="grid2">
+          <form id="joinForm" class="panel stack">
+            <h3>เข้าห้องตามเลข</h3>
+            <label>
+              เลขห้อง 8 หลัก
+              <input id="joinCode" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" required>
+            </label>
+            <button>เข้าร่วมห้อง</button>
+            <small>ห้องส่วนตัวจะไม่แสดงในรายการด้านข้าง</small>
+          </form>
+
+          <div class="panel">
+            <h3>ห้องสาธารณะ</h3>
+            <div id="publicRooms" class="room-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="createPage" hidden>
+        <div class="row between">
+          <h2>สร้างหมู่บ้าน</h2>
+          <button class="secondary" data-page="homePage">กลับ</button>
+        </div>
+
+        <form id="createForm" class="panel stack">
+          <div class="grid2">
+            <label>
+              ชื่อห้อง
+              <input name="title" maxlength="50" value="หมู่บ้านคืนจันทร์" required>
+            </label>
+            <label>
+              จำนวนผู้เล่นสูงสุด
+              <input name="capacity" type="number" min="4" step="1" placeholder="เว้นว่าง = ไม่จำกัด">
+            </label>
+            <label>
+              สถานะห้อง
+              <select name="visibility">
+                <option value="private">ส่วนตัว — เข้าด้วยเลขห้อง</option>
+                <option value="public">สาธารณะ — แสดงในรายการ</option>
+              </select>
+            </label>
+            <label>
+              หมาป่าคิดเป็นกี่เปอร์เซ็นต์ของผู้เล่น
+              <input name="wolfPercent" type="number" min="1" max="49" value="25" required>
+            </label>
+          </div>
+
+          <small>ปัดจำนวนหมาป่าลง แต่มีอย่างน้อย 1 ตัวเมื่อเริ่มเกม และต้องน้อยกว่าครึ่งหนึ่งของผู้เล่น</small>
+
+          <h3>บทบาทพิเศษฝ่ายชาวบ้าน / อิสระ</h3>
+          <div class="grid2">
+            <label class="check-row"><input type="checkbox" name="role" value="sheriff"> นายอำเภอ — โหวต 2 เท่า</label>
+            <label class="check-row"><input type="checkbox" name="role" value="doctor" checked> หมอ — ปกป้องคน</label>
+            <label class="check-row"><input type="checkbox" name="role" value="seer" checked> ผู้หยั่งรู้ — ตรวจฝ่าย</label>
+            <label class="check-row"><input type="checkbox" name="role" value="cupid"> ผู้ผูกคู่รัก — เลือกคู่คืนแรก</label>
+            <label class="check-row"><input type="checkbox" name="role" value="knight"> อัศวิน — ปกป้องสำเร็จ 1 ครั้ง</label>
+            <label class="check-row"><input type="checkbox" name="role" value="police"> ตำรวจ — จัดการ 1 ครั้ง ผิดออกด้วย</label>
+            <label class="check-row"><input type="checkbox" name="role" value="priest"> นักบวช — คืนชีพ 1 ครั้ง</label>
+            <label class="check-row"><input type="checkbox" name="role" value="jester"> ตัวตลก — ถูกโหวตออกแล้วชนะ</label>
+            <label class="check-row"><input type="checkbox" name="role" value="pet"> สัตว์เลี้ยงและเจ้าของ — มาเป็นคู่</label>
+          </div>
+
+          <h3>หมาป่าพิเศษ — แทนที่หมาป่าปกติ</h3>
+          <div class="grid2">
+            <label class="check-row"><input type="checkbox" name="role" value="loneWolf"> หมาป่าเดียวดาย — ไม่รู้จักฝูง ไม่มีแชทหมาป่า</label>
+            <label class="check-row"><input type="checkbox" name="role" value="hybrid"> ลูกครึ่ง — ผู้หยั่งรู้ตรวจเป็นชาวบ้าน</label>
+            <label class="check-row"><input type="checkbox" name="role" value="alpha"> จ่าฝูง — คะแนนโหวตกลางคืน 2 เท่า</label>
+          </div>
+
+          <div class="grid3" style="margin-top:10px">
+            <label>กลางคืน / วินาที<input name="nightSeconds" type="number" min="15" max="600" value="45" required></label>
+            <label>สนทนากลางวัน / วินาที<input name="daySeconds" type="number" min="15" max="600" value="90" required></label>
+            <label>ลงคะแนน / วินาที<input name="voteSeconds" type="number" min="15" max="600" value="30" required></label>
+          </div>
+
+          <button>สร้างห้อง</button>
+        </form>
+      </section>
+
+      <section id="avatarPage" hidden>
+        <div class="row between">
+          <h2>แต่งตัวอวตาร</h2>
+          <button class="secondary" data-page="homePage">กลับ</button>
+        </div>
+
+        <div class="panel stack">
+          <div id="avatarPreview" class="avatar preview"></div>
+          <h3>ตัวละคร</h3>
+          <div id="avatarChoices" class="avatar-choices"></div>
+          <h3>สีประจำตัว</h3>
+          <div id="colorChoices" class="color-choices"></div>
+          <button id="saveAvatar">บันทึกอวตาร</button>
+        </div>
+      </section>
+
+      <section id="roomPage" hidden>
+        <div class="panel row between" style="margin-bottom:18px">
+          <div>
+            <h2 id="roomTitle" style="margin-bottom:8px"></h2>
+            <div class="row">
+              <span id="roomCode" class="badge"></span>
+              <span id="roomVisibility" class="badge"></span>
+              <button id="copyCode" class="secondary" type="button">คัดลอกเลข</button>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div id="phaseLabel" class="muted"></div>
+            <div id="countdown" class="timer">—</div>
+          </div>
+        </div>
+
+        <div class="game-layout">
+          <div class="stack">
+            <div id="lobbyControls" class="panel stack"></div>
+            <div id="rolePanel" class="panel role-card" hidden></div>
+            <div id="actionPanel" class="panel" hidden></div>
+            <div id="resultPanel" class="panel" hidden></div>
+
+            <div class="panel">
+              <div class="row between">
+                <h3>ผู้เล่นในหมู่บ้าน</h3>
+                <span id="playerCount" class="badge"></span>
+              </div>
+              <div id="players" class="players"></div>
+            </div>
+
+            <div id="notesPanel" class="panel" hidden>
+              <h3>บันทึกลับของคุณ</h3>
+              <ul id="notes" class="notes"></ul>
+            </div>
+
+            <button id="leaveRoom" class="secondary">ออกจากห้อง</button>
+          </div>
+
+          <aside class="panel chat-panel">
+            <h3>บทสนทนา</h3>
+            <small id="chatStatus"></small>
+            <div id="chatTabs" class="chat-tabs"></div>
+            <div id="messages" class="messages" aria-live="polite"></div>
+
+            <form id="chatForm" class="chat-form">
+              <input id="chatInput" maxlength="300" placeholder="พิมพ์ข้อความ..." autocomplete="off">
+              <button id="chatSend">ส่ง</button>
+            </form>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer>MOONFALL · Social deduction for friends</footer>
+  </div>
+
+  <div id="toast" role="status" hidden></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
