@@ -63,7 +63,7 @@ const ROLE_GROUPS = [
     ]
   },
   {
-    title: "ฝ่ายหมาป่าพิเศษ (แทนหมาป่าธรรมดา)",
+    title: "ฝ่ายหมาป่า",
     roles: [
       ["loneWolf", "หมาป่าเดียวดาย: ไม่รู้ว่าใครเป็นพวก และไม่มีแชทหมาป่า"],
       ["hybrid", "ลูกครึ่ง: ผู้หยั่งรู้จะเห็นเป็นชาวบ้าน"],
@@ -81,23 +81,28 @@ const ROLE_GROUPS = [
   }
 ];
 
-function roleCheckboxes(selected) {
+function roleCheckboxes(selected, blind = false) {
   return ROLE_GROUPS.map(group => `
     <h3>${esc(group.title)}</h3>
     <div class="grid2">
-      ${group.roles.map(([value, label]) => `
+      ${group.roles.map(([value, label]) => {
+        const off = blind && (value === "cupid" || value === "priest");
+        return `
         <label class="check-row">
-          <input type="checkbox" name="role" value="${value}" ${selected[value] ? "checked" : ""}> ${esc(label)}
-        </label>`).join("")}
+          <input type="checkbox" name="role" value="${value}" ${selected[value] && !off ? "checked" : ""} ${off ? "disabled" : ""}> ${esc(label)}${off ? " (ใช้ในโหมดไม่รู้จักตัวเองไม่ได้)" : ""}
+        </label>`;
+      }).join("")}
     </div>
   `).join("");
 }
 
-function blindCheckbox(checked) {
+function modeSelect(blind) {
   return `
-    <label class="check-row">
-      <input type="checkbox" name="blind" ${checked ? "checked" : ""}>
-      โหมดไม่รู้บทบาท: ทุกคนไม่รู้บทบาทตัวเอง เลือกเป้าหมายได้ทุกคืน ถ้าบทบาทไม่มีผลก็ไม่เกิดอะไรขึ้น
+    <label>โหมดเกม
+      <select name="mode">
+        <option value="normal" ${blind ? "" : "selected"}>ธรรมดา (ทุกคนรู้บทบาทตัวเอง)</option>
+        <option value="blind" ${blind ? "selected" : ""}>ไม่รู้จักตัวเอง (ทุกคนไม่รู้บทบาท เลือกเป้าหมายได้ทุกคืน)</option>
+      </select>
     </label>`;
 }
 
@@ -123,6 +128,9 @@ let actionKey = "";
 let lastMessagesKey = "";
 let voteDraft = null;
 let voteDraftKey = "";
+let photoDraft; // undefined = ไม่เปลี่ยน, null = ลบรูป, string = รูปใหม่ (data URL)
+let createBlind = false;
+let createRolesState = { doctor: true, seer: true };
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -132,6 +140,13 @@ function esc(value) {
     '"': "&quot;",
     "'": "&#39;"
   })[char]);
+}
+
+// รูปโปรไฟล์ (ถ้ามี) หรือตัวอักษรอวตาร
+function avatarInner(user) {
+  return user.photo
+    ? `<img src="/photo/${esc(user.id)}?v=${Number(user.photo)}" alt="">`
+    : esc(user.avatar);
 }
 
 function toast(text) {
@@ -150,9 +165,11 @@ function showPage(id) {
     selectedAvatar = me.avatar;
     selectedColor = me.color;
     $("#nameInput").value = me.name;
+    photoDraft = undefined;
     renderAvatar();
   }
   if (id === "browsePage") renderRooms();
+  if (id === "createPage") showCreateStep("mode");
 }
 
 function emit(event, data = {}) {
@@ -178,6 +195,7 @@ async function attempt(task) {
 const TOKEN_SUFFIX = new URLSearchParams(location.search).get("as") || "";
 const TOKEN_KEY = "ww_token" + TOKEN_SUFFIX;
 const PROFILE_KEY = "ww_profile" + TOKEN_SUFFIX;
+const PHOTO_KEY = "ww_photo" + TOKEN_SUFFIX;
 let memoryToken = "";
 
 function randomToken() {
@@ -207,6 +225,21 @@ function loadProfile() {
   }
 }
 
+function loadPhoto() {
+  try {
+    return localStorage.getItem(PHOTO_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function storePhoto(value) {
+  try {
+    if (value) localStorage.setItem(PHOTO_KEY, value);
+    else localStorage.removeItem(PHOTO_KEY);
+  } catch {}
+}
+
 function saveProfile() {
   if (!me) return;
   try {
@@ -222,7 +255,7 @@ function renderAccount() {
   saveProfile();
   $("#account").innerHTML = `
     <button id="profileButton" class="secondary" type="button">
-      <span class="avatar small" style="--avatar-color:${esc(me.color)}">${esc(me.avatar)}</span>
+      <span class="avatar small" style="--avatar-color:${esc(me.color)}">${avatarInner(me)}</span>
       <span>${esc(me.name)}</span>
     </button>
   `;
@@ -259,7 +292,7 @@ function runAnnounce() {
       <h2>${esc(item.title)}</h2>
       ${item.players?.length ? `<div class="announce-players">${item.players.map(p => `
         <div class="announce-player">
-          <div class="avatar" style="--avatar-color:${esc(p.color)}">${esc(p.avatar)}</div>
+          <div class="avatar" style="--avatar-color:${esc(p.color)}">${avatarInner(p)}</div>
           <b>${esc(p.name)}</b>
           ${p.roleName ? `<small>บทบาท: ${esc(p.roleName)}</small>` : ""}
           ${p.note ? `<small>${esc(p.note)}</small>` : ""}
@@ -291,7 +324,7 @@ function clearAnnounce() {
 function connect() {
   const token = getToken();
   socket?.disconnect();
-  socket = io({ auth: cb => cb({ token, ...loadProfile() }) });
+  socket = io({ auth: cb => cb({ token, ...loadProfile(), photo: loadPhoto() || undefined }) });
 
   socket.on("connect", () => { $("#connection").hidden = true; });
   socket.on("disconnect", () => {
@@ -333,6 +366,7 @@ function connect() {
       me.name = self.name;
       me.avatar = self.avatar;
       me.color = self.color;
+      me.photo = self.photo;
       renderAccount();
     }
     showPage("roomPage");
@@ -382,15 +416,39 @@ $("#createForm").onsubmit = event => {
     nightSeconds: Number(form.get("nightSeconds")),
     daySeconds: Number(form.get("daySeconds")),
     voteSeconds: Number(form.get("voteSeconds")),
-    blind: form.get("blind") === "on",
+    blind: createBlind,
     roles
   }));
 };
 
-$("#createRoles").innerHTML = roleCheckboxes({ doctor: true, seer: true }) + blindCheckbox(false);
+function showCreateStep(step) {
+  $("#modePicker").hidden = step !== "mode";
+  $("#createForm").hidden = step !== "form";
+}
+
+function renderCreateRoles() {
+  if ($("#createRoles").children.length) {
+    createRolesState = {};
+    new FormData($("#createForm")).getAll("role").forEach(role => createRolesState[role] = true);
+  }
+  $("#createRoles").innerHTML = roleCheckboxes(createRolesState, createBlind);
+  $("#modeBadge").textContent = "โหมด: " + (createBlind ? "ไม่รู้จักตัวเอง" : "ธรรมดา");
+}
+
+$$("[data-mode]").forEach(button => {
+  button.onclick = () => {
+    createBlind = button.dataset.mode === "blind";
+    renderCreateRoles();
+    showCreateStep("form");
+  };
+});
+$("#changeMode").onclick = () => showCreateStep("mode");
 
 function renderAvatar() {
-  $("#avatarPreview").textContent = selectedAvatar;
+  const preview = $("#avatarPreview");
+  if (typeof photoDraft === "string") preview.innerHTML = `<img src="${photoDraft}" alt="">`;
+  else if (photoDraft === undefined && me?.photo) preview.innerHTML = avatarInner(me);
+  else preview.textContent = selectedAvatar;
   $("#avatarPreview").style.setProperty("--avatar-color", selectedColor);
 
   $("#avatarChoices").innerHTML = AVATARS.map(avatar => `
@@ -407,6 +465,7 @@ function renderAvatar() {
   $$("[data-avatar]").forEach(button => {
     button.onclick = () => {
       selectedAvatar = button.dataset.avatar;
+      photoDraft = null; // เลือกตัวอักษรแทนรูป
       renderAvatar();
     };
   });
@@ -426,10 +485,15 @@ $("#profileForm").onsubmit = event => {
     const result = await emit("profile", {
       name: $("#nameInput").value,
       avatar: selectedAvatar,
-      color: selectedColor
+      color: selectedColor,
+      photo: photoDraft
     });
+    if (typeof photoDraft === "string") storePhoto(photoDraft);
+    else if (photoDraft === null) storePhoto("");
+    photoDraft = undefined;
     me = result.user;
     renderAccount();
+    renderAvatar();
     toast("บันทึกแล้ว");
   });
 };
@@ -439,6 +503,50 @@ $("#randomName").onclick = () => attempt(async () => {
   const result = await emit("suggestName");
   $("#nameInput").value = result.name;
 });
+
+// ย่อรูปเป็นสี่เหลี่ยมจัตุรัส 128px แล้วแปลงเป็น JPEG ก่อนอัปโหลด
+async function resizeImage(file) {
+  if (!file.type.startsWith("image/")) throw new Error("กรุณาเลือกไฟล์รูปภาพ");
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error("เปิดรูปนี้ไม่ได้ ลองรูป JPG หรือ PNG");
+  }
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, size, size);
+  const side = Math.min(bitmap.width, bitmap.height);
+  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, size, size);
+  bitmap.close?.();
+  let quality = 0.85;
+  let url;
+  do {
+    url = canvas.toDataURL("image/jpeg", quality);
+    quality -= 0.1;
+  } while (url.length > 20000 && quality > 0.3);
+  if (url.length > 20000) throw new Error("รูปใหญ่เกินไป ลองรูปอื่น");
+  return url;
+}
+
+$("#photoPick").onclick = () => $("#photoInput").click();
+$("#photoInput").onchange = event => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  attempt(async () => {
+    photoDraft = await resizeImage(file);
+    renderAvatar();
+  });
+};
+$("#photoClear").onclick = () => {
+  photoDraft = null;
+  renderAvatar();
+};
 
 $("#copyCode").onclick = () => attempt(async () => {
   if (!navigator.clipboard) {
@@ -503,7 +611,7 @@ function renderLobby() {
       <span class="badge">หมาป่า ${plan.wolves} คน (${room.settings.wolfPercent}%)</span>
       <span class="badge">ชาวบ้านธรรมดา ${plan.villagers} คน</span>
       <span class="badge">ฝ่ายเป็นกลาง ${plan.neutrals.length} คน</span>
-      ${room.settings.blind ? '<span class="badge">โหมดไม่รู้บทบาท</span>' : ""}
+      ${room.settings.blind ? '<span class="badge">โหมดไม่รู้จักตัวเอง</span>' : ""}
     </div>
     <small>บทบาทพิเศษ: ${esc(specialNames || "ไม่มี")}</small>
     <small>กลางคืน ${room.settings.nightSeconds}s · คุย ${room.settings.daySeconds}s · โหวต ${room.settings.voteSeconds}s</small>
@@ -560,8 +668,8 @@ function renderSettings() {
             <input name="wolfPercent" type="number" min="1" max="49" value="${s.wolfPercent}" required>
           </label>
         </div>
-        ${roleCheckboxes(s.roles)}
-        ${blindCheckbox(s.blind)}
+        ${roleCheckboxes(s.roles, s.blind)}
+        ${modeSelect(s.blind)}
         <div class="grid3">
           <label>กลางคืน (วินาที)<input name="nightSeconds" type="number" min="15" max="600" value="${s.nightSeconds}" required></label>
           <label>คุย (วินาที)<input name="daySeconds" type="number" min="15" max="600" value="${s.daySeconds}" required></label>
@@ -572,6 +680,14 @@ function renderSettings() {
       </form>
     </details>
   `;
+
+  panel.querySelector('[name="mode"]').onchange = event => {
+    const blind = event.target.value === "blind";
+    panel.querySelectorAll('input[name="role"][value="cupid"], input[name="role"][value="priest"]').forEach(input => {
+      input.disabled = blind;
+      if (blind) input.checked = false;
+    });
+  };
 
   $("#settingsForm").onsubmit = event => {
     event.preventDefault();
@@ -587,7 +703,7 @@ function renderSettings() {
         nightSeconds: Number(form.get("nightSeconds")),
         daySeconds: Number(form.get("daySeconds")),
         voteSeconds: Number(form.get("voteSeconds")),
-        blind: form.get("blind") === "on",
+        blind: form.get("mode") === "blind",
         roles
       });
       toast("บันทึกแล้ว");
@@ -737,7 +853,7 @@ function renderPlayers() {
     <div class="player ${player.alive ? "" : "out"} ${player.id === me.id ? "self" : ""} ${selectable ? "selectable" : ""} ${selected ? "selected" : ""}"
          data-pid="${esc(player.id)}" ${selectable ? 'role="button" tabindex="0"' : ""}>
       ${count ? `<span class="count-badge" title="จำนวนคะแนน">${count}</span>` : ""}
-      <div class="avatar" style="--avatar-color:${esc(player.color)}">${esc(player.avatar)}</div>
+      <div class="avatar" style="--avatar-color:${esc(player.color)}">${avatarInner(player)}</div>
       <div class="player-name">${esc(player.name)}</div>
       <div class="row" style="justify-content:center;gap:5px">
         ${player.id === room.hostId ? '<span class="badge">เจ้าของห้อง</span>' : ""}
