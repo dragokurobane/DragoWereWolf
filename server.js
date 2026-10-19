@@ -54,7 +54,13 @@ const ROLE_NAMES = {
   priest: "นักบวช",
   jester: "ตัวตลก",
   pet: "สัตว์เลี้ยง",
-  owner: "เจ้าของ"
+  owner: "มาดาม",
+  psycho: "คนป่วยจิต",
+  spyWolf: "หมาป่าสายลับ",
+  cosplayer: "นักคอสเพลย์",
+  hunter: "นายพราน",
+  witchDoctor: "หมอผี",
+  thief: "โจร"
 };
 
 const ROLE_DESCRIPTIONS = {
@@ -62,21 +68,29 @@ const ROLE_DESCRIPTIONS = {
   wolf: "ไม่ได้รับคำของชาวบ้าน ต้องแกล้งทำเป็นรู้ และร่วมกับฝูงเลือกเป้าหมายตอนกลางคืน",
   sheriff: "คะแนนโหวตกลางวันมีน้ำหนัก 2 คะแนน",
   doctor: "ปกป้องหนึ่งคนต่อคืน แต่เลือกคนเดิมติดกันไม่ได้",
-  seer: "ตรวจหนึ่งคนต่อคืน แต่ลูกครึ่งจะให้ผลว่าไม่ใช่หมาป่า",
+  seer: "ตรวจหนึ่งคนต่อคืนและเห็นบทบาทของคนนั้น แต่ลูกครึ่งจะแสดงเป็นชาวบ้าน และนักคอสเพลย์จะแสดงเป็นหมาป่า",
   cupid: "คืนแรกเลือกผู้เล่นสองคนเป็นคู่รัก รวมตัวเองได้",
   knight: "ปกป้องหนึ่งคนต่อคืน พลังหมดเมื่อช่วยสำเร็จ",
-  police: "จัดการเป้าหมายได้ 1 ครั้ง หากเลือกคนที่ไม่ใช่ฝ่ายหมาป่าจะออกจากเกมด้วย",
+  police: "จัดการเป้าหมายได้ 1 ครั้ง หากเลือกฝ่ายชาวบ้านจะออกจากเกมด้วย (หมาป่าและฝ่ายเป็นกลางไม่เป็นไร)",
   loneWolf: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน ไม่รู้ว่าใครเป็นพวกเดียวกัน และไม่มีแชทหมาป่า",
   hybrid: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน แต่ผู้หยั่งรู้จะตรวจคุณเป็นชาวบ้าน",
   alpha: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน คะแนนเลือกเป้าหมายกลางคืนมีน้ำหนัก 2",
   priest: "คืนชีพผู้เล่นที่ออกจากเกมได้ 1 ครั้ง",
   jester: "ไม่มีฝ่าย หากถูกโหวตออกตอนกลางวันจะชนะทันที",
-  pet: "รู้จักเจ้าของ หากเจ้าของถูกจัดการ คุณจะรู้ข้อมูลผู้ลงมือ",
-  owner: "รู้จักสัตว์เลี้ยง หากสัตว์เลี้ยงถูกจัดการ คุณจะรู้ข้อมูลผู้ลงมือ"
+  pet: "รู้จักมาดาม หากมาดามถูกจัดการ คุณจะรู้ข้อมูลผู้ลงมือ",
+  owner: "รู้จักสัตว์เลี้ยง หากสัตว์เลี้ยงถูกจัดการ คุณจะรู้ข้อมูลผู้ลงมือ",
+  psycho: "ไม่มีฝ่าย หากถูกฆ่าตอนกลางคืนคุณจะชนะทันที",
+  spyWolf: "อยู่ฝ่ายหมาป่า และรู้คำของชาวบ้าน",
+  cosplayer: "อยู่ฝ่ายชาวบ้าน แต่หมาป่าจะเห็นคุณเป็นพวกเดียวกัน และผู้หยั่งรู้จะเห็นคุณเป็นหมาป่า",
+  hunter: "เลือกหนึ่งคนทุกคืน หากคนนั้นถูกหมาป่าฆ่า เขาจะไม่ตาย และหมาป่าที่ลงมือจะตายแทน (สุ่ม 1 ตัว)",
+  witchDoctor: "ไม่มีฝ่ายในตอนแรก หากถูกหมาป่าฆ่าจะไม่ตาย แต่กลายเป็นหมาป่าแทน",
+  thief: "เลือกหนึ่งคนทุกคืน โหวตของคนนั้นในวันถัดไปจะเป็นโมฆะ และคะแนนโหวตของคุณเพิ่มขึ้น 1",
+  unknown: "โหมดไม่รู้บทบาท: คุณไม่รู้ว่าตัวเองเป็นอะไร เลือกเป้าหมายได้ทุกคืน ถ้าบทบาทของคุณไม่มีผล ก็ไม่เกิดอะไรขึ้น"
 };
 
-const WOLF_ROLES = new Set(["wolf", "loneWolf", "hybrid", "alpha"]);
-const SPECIAL_WOLF_ROLES = ["loneWolf", "hybrid", "alpha"];
+const WOLF_ROLES = new Set(["wolf", "loneWolf", "hybrid", "alpha", "spyWolf"]);
+const SPECIAL_WOLF_ROLES = ["loneWolf", "hybrid", "alpha", "spyWolf"];
+const NEUTRAL_ROLES = ["jester", "psycho", "witchDoctor"];
 const VILLAGE_SPECIAL_ROLES = [
   "sheriff",
   "doctor",
@@ -86,9 +100,12 @@ const VILLAGE_SPECIAL_ROLES = [
   "police",
   "priest",
   "pet",
-  "owner"
+  "owner",
+  "hunter",
+  "thief",
+  "cosplayer"
 ];
-const SETTING_ROLES = [...VILLAGE_SPECIAL_ROLES, ...SPECIAL_WOLF_ROLES, "jester"];
+const SETTING_ROLES = [...VILLAGE_SPECIAL_ROLES, ...SPECIAL_WOLF_ROLES, ...NEUTRAL_ROLES];
 
 const PHASE_NAMES = {
   lobby: "รอผู้เล่น",
@@ -105,12 +122,12 @@ function isWolf(player) {
 function factionOf(player) {
   if (!player?.role) return null;
   if (isWolf(player)) return "wolf";
-  if (player.role === "jester") return "neutral";
+  if (NEUTRAL_ROLES.includes(player.role)) return "neutral";
   return "village";
 }
 
 function hasWolfChat(player) {
-  return isWolf(player) && player.role !== "loneWolf";
+  return isWolf(player) && player.role !== "loneWolf" && !player.blind;
 }
 
 function nightVoteWeight(player) {
@@ -158,6 +175,8 @@ function makeUser(id, name, avatar, color) {
     nameKey: name.toLocaleLowerCase(),
     avatar: AVATARS.includes(avatar) ? avatar : pick(AVATARS),
     color: COLORS.includes(color) ? color : pick(COLORS),
+    photo: null,
+    photoV: 0,
     lastSeen: Date.now()
   };
 }
@@ -167,12 +186,32 @@ function getUser(id) {
 }
 
 function publicUser(user) {
-  return { id: user.id, name: user.name, avatar: user.avatar, color: user.color };
+  return { id: user.id, name: user.name, avatar: user.avatar, color: user.color, photo: user.photoV || 0 };
 }
 
 function card(id) {
   const user = getUser(id);
-  return { name: user.name, avatar: user.avatar, color: user.color };
+  return { id, name: user.name, avatar: user.avatar, color: user.color, photo: user.photoV || 0 };
+}
+
+// รูปโปรไฟล์: รับเฉพาะ JPEG ที่ย่อแล้วจากเบราว์เซอร์ (ไม่เกิน 16 KB)
+let photoCounter = 0;
+function readPhoto(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/.exec(String(value));
+  if (!m) throw new Error("รูปต้องเป็นไฟล์ภาพ JPEG");
+  const buf = Buffer.from(m[1], "base64");
+  if (buf.length < 100 || buf.length > 16 * 1024 || buf[0] !== 0xff || buf[1] !== 0xd8 || buf[2] !== 0xff) {
+    throw new Error("รูปไม่ถูกต้องหรือใหญ่เกินไป");
+  }
+  return buf;
+}
+
+function setPhoto(user, buf) {
+  if (buf === undefined) return;
+  user.photo = buf;
+  user.photoV = buf ? ++photoCounter : 0;
 }
 
 // ส่งแจ้งเตือนกลางหน้าจอให้ทุกคนในห้อง
@@ -201,12 +240,43 @@ function announceDeaths(room, title, opts = {}) {
   });
 }
 
+function voteWeight(room, p) {
+  // โจรขโมยโหวตของคนนี้ไป → โหวตของคนนี้ไม่นับ
+  if (room.players.some(t => t.alive && t.role === "thief" && t.stealFrom === p.id)) return 0;
+  let weight = p.role === "sheriff" ? 2 : 1;
+  if (p.role === "thief" && p.stealFrom && room.players.some(t => t.id === p.stealFrom && t.alive)) weight += 1;
+  return weight;
+}
+
+// ใช้ในโหมดไม่รู้บทบาท: ทุกคนเลือกได้ แต่เลือกที่บทบาทไม่มีผลจะถูกตัดทิ้งตอนสรุปคืน
+function validNightTarget(room, player, targetId) {
+  const target = room.players.find(p => p.id === targetId && p.alive);
+  if (!target) return false;
+  if (isWolf(player)) return target.id !== player.id && (player.role === "loneWolf" || !isWolf(target));
+  switch (player.role) {
+    case "seer":
+    case "police":
+    case "hunter":
+    case "thief":
+      return target.id !== player.id;
+    case "doctor":
+      return target.id !== player.lastHeal;
+    case "knight":
+      return !player.knightUsed;
+    default:
+      return false;
+  }
+}
+
 function canActTonight(room, player) {
   if (!player.alive) return false;
+  if (player.blind) return true;
   if (isWolf(player)) return true;
   switch (player.role) {
     case "doctor":
     case "seer":
+    case "hunter":
+    case "thief":
       return true;
     case "knight":
       return !player.knightUsed;
@@ -267,7 +337,7 @@ function extraTallies(room, me) {
         continue;
       }
       if (!room.players.some(x => x.id === t && x.alive)) continue;
-      tally[t] = (tally[t] || 0) + (p.role === "sheriff" ? 2 : 1);
+      tally[t] = (tally[t] || 0) + voteWeight(room, p);
     }
     return { tally, skipCount, progress: { done, total: alivePlayers(room).length } };
   }
@@ -307,20 +377,25 @@ function wolfCount(room) {
 function planRoles(room, random = false) {
   const n = room.players.length;
   const wolves = wolfCount(room);
+  const blind = Boolean(room.settings.blind);
   const order = list => (random ? shuffle(list) : list);
 
   const wolfPool = SPECIAL_WOLF_ROLES.filter(r => room.settings.roles[r]);
   const wolfSpecials = order(wolfPool).slice(0, wolves);
 
-  // แต่ละหน่วยคือบทบาทที่ต้องลงไปพร้อมกัน (สัตว์เลี้ยง+เจ้าของต้องมาเป็นคู่)
+  // แต่ละหน่วยคือบทบาทที่ต้องลงไปพร้อมกัน (สัตว์เลี้ยง+มาดามต้องมาเป็นคู่)
   const units = [];
   for (const role of VILLAGE_SPECIAL_ROLES) {
     if (!room.settings.roles[role] || role === "owner") continue;
+    if (blind && (role === "cupid" || role === "priest")) continue; // ใช้ในโหมดไม่รู้บทบาทไม่ได้
     units.push(role === "pet" ? ["pet", "owner"] : [role]);
   }
-  if (room.settings.roles.jester) units.push(["jester"]);
+  for (const role of NEUTRAL_ROLES) {
+    if (room.settings.roles[role]) units.push([role]);
+  }
 
-  let slots = Math.max(0, n - wolves);
+  // เหลือที่ไว้ให้ชาวบ้านธรรมดาอย่างน้อย 1 คนเสมอ
+  let slots = Math.max(0, n - wolves - 1);
   const chosen = [];
   for (const unit of order(units)) {
     if (unit.length <= slots) {
@@ -329,8 +404,8 @@ function planRoles(room, random = false) {
     }
   }
 
-  const villageSpecials = chosen.filter(r => r !== "jester");
-  const neutrals = chosen.filter(r => r === "jester");
+  const villageSpecials = chosen.filter(r => !NEUTRAL_ROLES.includes(r));
+  const neutrals = chosen.filter(r => NEUTRAL_ROLES.includes(r));
   const requested = wolfPool.length + units.reduce((sum, u) => sum + u.length, 0);
   const used = wolfSpecials.length + chosen.length;
 
@@ -399,6 +474,7 @@ function snapshot(room, userId) {
   if (!me) return null;
 
   const reads = readableChannels(room, me);
+  const hidden = me.blind && me.alive && room.phase !== "ended";
 
   return {
     id: room.id,
@@ -414,11 +490,15 @@ function snapshot(room, userId) {
     clueHistory: room.phase === "ended" ? room.clueHistory : [],
     players: room.players.map(player => {
       const user = getUser(player.id);
+      // หมาป่าเห็นนักคอสเพลย์เป็นพวกเดียวกัน
+      const asWolf = hasWolfChat(me) && player.alive && player.role === "cosplayer" && player.id !== userId;
       const showRole =
         room.phase === "ended" ||
         !player.alive ||
-        player.id === userId ||
-        (hasWolfChat(me) && isWolf(player));
+        (player.id === userId && !me.blind) ||
+        (hasWolfChat(me) && isWolf(player)) ||
+        asWolf;
+      const shownRole = asWolf ? "wolf" : player.role;
 
       return {
         ...publicUser(user),
@@ -426,9 +506,9 @@ function snapshot(room, userId) {
         alive: player.alive,
         left: Boolean(player.left),
         online: isOnline(player.id),
-        role: showRole ? player.role : null,
-        roleName: showRole ? ROLE_NAMES[player.role] : null,
-        faction: showRole ? factionOf(player) : null,
+        role: showRole ? shownRole : null,
+        roleName: showRole ? ROLE_NAMES[shownRole] : null,
+        faction: showRole ? factionOf({ role: shownRole }) : null,
         lover: me.lover === player.id,
         bonded: me.bondId === player.id
       };
@@ -437,18 +517,18 @@ function snapshot(room, userId) {
       id: me.id,
       alive: me.alive,
       ready: me.ready,
-      role: me.role,
-      roleName: ROLE_NAMES[me.role] || "",
-      description: ROLE_DESCRIPTIONS[me.role] || "",
-      faction: factionOf(me),
+      role: hidden ? "unknown" : me.role,
+      roleName: hidden ? "ไม่ทราบ" : ROLE_NAMES[me.role] || "",
+      description: hidden ? ROLE_DESCRIPTIONS.unknown : ROLE_DESCRIPTIONS[me.role] || "",
+      faction: hidden ? null : factionOf(me),
       loverId: me.lover,
       bondId: me.bondId,
       clue: me.clue,
       notes: me.notes,
-      lastHeal: me.lastHeal,
-      knightUsed: me.knightUsed,
-      policeUsed: me.policeUsed,
-      priestUsed: me.priestUsed,
+      lastHeal: hidden ? null : me.lastHeal,
+      knightUsed: hidden ? false : me.knightUsed,
+      policeUsed: hidden ? false : me.policeUsed,
+      priestUsed: hidden ? false : me.priestUsed,
       choice: room.phase === "night" ? (room.actions[me.id] ?? null) : null,
       vote: room.phase === "vote" ? (room.votes[me.id] ?? null) : null
     },
@@ -530,6 +610,7 @@ function cleanSettings(data) {
     wolfPercent,
     visibility: data.visibility === "public" ? "public" : "private",
     roles,
+    blind: Boolean(data.blind),
     nightSeconds,
     daySeconds,
     voteSeconds
@@ -551,7 +632,10 @@ function newPlayer(id) {
     knightUsed: false,
     policeUsed: false,
     priestUsed: false,
-    lastChatAt: 0
+    lastChatAt: 0,
+    stealFrom: null,
+    blind: false,
+    offlineAt: null
   };
 }
 
@@ -636,7 +720,9 @@ function makeClues(room) {
   });
 
   for (const p of alivePlayers(room)) {
-    p.clue = isWolf(p)
+    if (room.settings.blind) p.clue = null; // ได้รับคำจะรู้ทันทีว่าไม่ใช่หมาป่า
+    else if (p.role === "spyWolf") p.clue = { round: room.round, type: "คำของฝั่งชาวบ้าน (คุณเป็นสายลับ)", text: word };
+    else p.clue = isWolf(p)
       ? null
       : { round: room.round, type: "คำของฝั่งชาวบ้าน (ทุกคนได้คำเดียวกัน)", text: word };
   }
@@ -746,6 +832,7 @@ function beginDay(room) {
 function beginNight(room) {
   room.actions = {};
   room.votes = {};
+  for (const p of room.players) p.stealFrom = null;
   message(room, "public", `เริ่มคืนที่ ${room.round}`);
   announce(room, { kind: "phase", title: `คืนที่ ${room.round}`, text: "หมู่บ้านหลับใหล ใครมีความสามารถให้เลือกเป้าหมาย", players: [] });
   setPhase(room, "night", room.settings.nightSeconds);
@@ -762,6 +849,13 @@ function topTargets(scores) {
 function resolveNight(room) {
   const actors = alivePlayers(room);
   const aliveBefore = new Set(actors.map(p => p.id));
+
+  if (room.settings.blind) {
+    for (const p of actors) {
+      const v = room.actions[p.id];
+      if (typeof v === "string" && v !== "skip" && !validNightTarget(room, p, v)) delete room.actions[p.id];
+    }
+  }
 
   if (room.round === 1) {
     const cupid = actors.find(p => p.role === "cupid");
@@ -795,11 +889,14 @@ function resolveNight(room) {
   for (const seer of actors.filter(p => p.role === "seer")) {
     const target = room.players.find(p => p.id === room.actions[seer.id]);
     if (!target) continue;
-    const detectedWolf = isWolf(target) && target.role !== "hybrid";
-    personal(
-      seer,
-      `คืน ${room.round}: ${getUser(target.id).name} ` + (detectedWolf ? "เป็นหมาป่า" : "ไม่ใช่หมาป่า")
-    );
+    const shown = target.role === "hybrid" ? "villager" : target.role === "cosplayer" ? "wolf" : target.role;
+    personal(seer, `คืน ${room.round}: ${getUser(target.id).name} คือ ${ROLE_NAMES[shown]}`);
+  }
+
+  for (const thief of actors.filter(p => p.role === "thief")) {
+    const target = room.players.find(p => p.id === room.actions[thief.id] && p.alive);
+    thief.stealFrom = target ? target.id : null;
+    if (target) personal(thief, `คืน ${room.round}: คุณขโมยโหวตของ ${getUser(target.id).name}`);
   }
 
   const doctorProtected = new Set();
@@ -843,7 +940,7 @@ function resolveNight(room) {
     if (!target) continue;
     police.policeUsed = true;
     addAttack(target.id, [police.id]);
-    if (!isWolf(target)) policePenalties.push(police);
+    if (factionOf(target) === "village") policePenalties.push(police);
   }
 
   const successfulAttacks = [];
@@ -861,6 +958,31 @@ function resolveNight(room) {
       continue;
     }
 
+    if (targetId === victimId) {
+      // นายพราน: เป้าหมายรอด หมาป่าที่ลงมือตายแทน
+      const hunter = actors.find(p => p.role === "hunter" && room.actions[p.id] === targetId);
+      if (hunter) {
+        const attackers = [...killers].map(id => room.players.find(p => p.id === id)).filter(p => p?.alive && isWolf(p));
+        const pool = attackers.length ? attackers : wolfActors;
+        if (pool.length) {
+          const wolf = pool[crypto.randomInt(pool.length)];
+          personal(hunter, "คุณปกป้องเป้าหมายสำเร็จ หมาป่าที่ลงมือถูกสวนกลับ");
+          eliminate(room, wolf, "ถูกนายพรานสวนกลับ");
+          continue;
+        }
+      }
+      // หมอผี: ถูกหมาป่าฆ่าแล้วไม่ตาย แต่กลายเป็นหมาป่า
+      if (target.role === "witchDoctor") {
+        target.role = "wolf";
+        target.clue = null;
+        personal(target, "คุณถูกหมาป่ากัด ไม่ตายแต่กลายเป็นหมาป่า ร่วมฝ่ายหมาป่าตั้งแต่บัดนี้");
+        for (const w of wolfActors) {
+          if (hasWolfChat(w)) personal(w, `${getUser(target.id).name} เป็นหมอผี และกลายเป็นหมาป่าแล้ว`);
+        }
+        continue;
+      }
+    }
+
     successfulAttacks.push({ target, killerIds: [...killers] });
   }
 
@@ -869,7 +991,7 @@ function resolveNight(room) {
   }
 
   for (const police of policePenalties) {
-    personal(police, "คุณเลือกคนที่ไม่ใช่ฝ่ายหมาป่า จึงได้รับผลเสียของความสามารถ");
+    personal(police, "คุณเลือกฝ่ายชาวบ้าน จึงได้รับผลเสียของความสามารถ");
     eliminate(room, police, "ผลจากการใช้ความสามารถผิดเป้าหมาย");
   }
 
@@ -879,6 +1001,12 @@ function resolveNight(room) {
     announce(room, { kind: "safe", title: "คืนนี้ปลอดภัย", text: "ไม่มีผู้เล่นออกจากเกม", players: [] });
   } else {
     announceDeaths(room, "มีผู้ออกจากเกมในคืนนี้");
+  }
+
+  const psycho = successfulAttacks.map(a => a.target).find(t => t.role === "psycho" && !t.alive);
+  if (psycho) {
+    finish(room, `คนป่วยจิตชนะ — ${getUser(psycho.id).name} ถูกฆ่า`);
+    return;
   }
 
   if (checkWin(room)) return;
@@ -903,7 +1031,8 @@ function resolveVote(room) {
     const targetId = room.votes[player.id];
     if (!targetId || targetId === "skip") continue;
     if (!room.players.some(p => p.id === targetId && p.alive)) continue;
-    const weight = player.role === "sheriff" ? 2 : 1;
+    const weight = voteWeight(room, player);
+    if (weight <= 0) continue;
     scores.set(targetId, (scores.get(targetId) || 0) + weight);
   }
 
@@ -950,7 +1079,9 @@ io.use((socket, next) => {
   if (!users.has(id)) {
     if (users.size >= 5000) return next(new Error("เซิร์ฟเวอร์เต็ม กรุณาลองใหม่ภายหลัง"));
     const wanted = cleanName(auth.name);
-    users.set(id, makeUser(id, wanted && !nameTaken(wanted) ? wanted : randomName(), auth.avatar, auth.color));
+    const created = makeUser(id, wanted && !nameTaken(wanted) ? wanted : randomName(), auth.avatar, auth.color);
+    try { setPhoto(created, readPhoto(auth.photo)); } catch {}
+    users.set(id, created);
   }
 
   socket.data.userId = id;
@@ -960,6 +1091,8 @@ io.use((socket, next) => {
 io.on("connection", socket => {
   const userId = socket.data.userId;
   online.set(userId, (online.get(userId) || 0) + 1);
+  const mineAtConnect = rooms.get(userRoom.get(userId))?.players.find(p => p.id === userId);
+  if (mineAtConnect) mineAtConnect.offlineAt = null;
   socket.emit("me", publicUser(getUser(userId)));
   socket.emit("rooms", publicRooms());
 
@@ -993,6 +1126,49 @@ io.on("connection", socket => {
     const room = rooms.get(userRoom.get(userId));
     if (room) broadcastRoom(room);
     return { user: publicUser(user) };
+  });
+
+  on("suggestName", () => ({ name: randomName() }));
+
+  on("profile", data => {
+    if (!AVATARS.includes(data.avatar) || !COLORS.includes(data.color)) throw new Error("อวตารไม่ถูกต้อง");
+    const photo = readPhoto(data.photo);
+    const name = cleanName(data.name);
+    if (!name) throw new Error("ชื่อยาว 3–24 ตัว ใช้ตัวอักษร ตัวเลข ช่องว่าง _ หรือ -");
+    const user = getUser(userId);
+    const room = rooms.get(userRoom.get(userId));
+    const nameChanged = name !== user.name;
+    if (nameChanged) {
+      if (room && !["lobby", "ended"].includes(room.phase)) throw new Error("เปลี่ยนชื่อระหว่างเกมไม่ได้");
+      if (nameTaken(name, userId)) throw new Error("ชื่อนี้มีคนใช้อยู่แล้ว");
+    }
+    const oldName = user.name;
+    user.name = name;
+    user.nameKey = name.toLocaleLowerCase();
+    user.avatar = data.avatar;
+    user.color = data.color;
+    setPhoto(user, photo);
+    if (room) {
+      if (nameChanged) message(room, "public", `${oldName} เปลี่ยนชื่อเป็น ${name}`);
+      broadcastRoom(room);
+    }
+    return { user: publicUser(user) };
+  });
+
+  on("kick", data => {
+    const room = requireRoom(userId);
+    requireHost(room, userId);
+    const targetId = String(data.id || "");
+    if (targetId === userId) throw new Error("เตะตัวเองไม่ได้");
+    const target = room.players.find(p => p.id === targetId && !p.left);
+    if (!target) throw new Error("ไม่พบผู้เล่นนี้");
+
+    (room.banned ||= new Set()).add(targetId);
+    for (const s of io.sockets.sockets.values()) {
+      if (s.data.userId === targetId) s.emit("notice", "คุณถูกเจ้าของห้องเตะออก");
+    }
+    message(room, "public", `${getUser(targetId).name} ถูกเจ้าของห้องเตะออก`);
+    leaveRoom(targetId);
   });
 
   on("rename", data => {
@@ -1056,6 +1232,7 @@ io.on("connection", socket => {
 
     const room = rooms.get(id);
     if (!room) throw new Error("ไม่พบเลขห้องนี้");
+    if (room.banned?.has(userId)) throw new Error("คุณถูกเตะออกจากห้องนี้");
     if (room.phase !== "lobby") throw new Error("ห้องนี้เริ่มเกมแล้ว");
     if (room.settings.capacity !== null && room.players.length >= room.settings.capacity) {
       throw new Error("ห้องเต็มแล้ว");
@@ -1097,7 +1274,7 @@ io.on("connection", socket => {
     ]);
 
     room.players.forEach((p, index) => {
-      Object.assign(p, newPlayer(p.id), { role: deck[index] });
+      Object.assign(p, newPlayer(p.id), { role: deck[index], blind: Boolean(room.settings.blind) });
     });
 
     const pet = room.players.find(p => p.role === "pet");
@@ -1105,7 +1282,7 @@ io.on("connection", socket => {
     if (pet && owner) {
       pet.bondId = owner.id;
       owner.bondId = pet.id;
-      personal(pet, `เจ้าของของคุณคือ ${getUser(owner.id).name}`);
+      personal(pet, `มาดามของคุณคือ ${getUser(owner.id).name}`);
       personal(owner, `สัตว์เลี้ยงของคุณคือ ${getUser(pet.id).name}`);
     }
 
@@ -1165,10 +1342,12 @@ io.on("connection", socket => {
     if (room.phase !== "night" || !player.alive) {
       throw new Error("ใช้ความสามารถได้เฉพาะกลางคืนขณะยังอยู่ในเกม");
     }
-    if (player.role === "knight" && player.knightUsed) throw new Error("พลังอัศวินหมดแล้ว");
-    if (player.role === "police" && player.policeUsed) throw new Error("ตำรวจใช้ความสามารถไปแล้ว");
-    if (player.role === "priest" && player.priestUsed) throw new Error("คุณใช้การคืนชีพไปแล้ว");
-    if (!canActTonight(room, player)) throw new Error("คืนนี้คุณไม่มีความสามารถที่ใช้ได้");
+    if (!player.blind) {
+      if (player.role === "knight" && player.knightUsed) throw new Error("พลังอัศวินหมดแล้ว");
+      if (player.role === "police" && player.policeUsed) throw new Error("ตำรวจใช้ความสามารถไปแล้ว");
+      if (player.role === "priest" && player.priestUsed) throw new Error("คุณใช้การคืนชีพไปแล้ว");
+      if (!canActTonight(room, player)) throw new Error("คืนนี้คุณไม่มีความสามารถที่ใช้ได้");
+    }
 
     // value: undefined = ยกเลิก, "skip" = ข้าม, id หรือ [id, id] = เลือกเป้าหมาย
     let value;
@@ -1176,7 +1355,7 @@ io.on("connection", socket => {
       value = undefined;
     } else if (data.skip || data.target === "skip") {
       value = "skip";
-    } else if (player.role === "cupid") {
+    } else if (!player.blind && player.role === "cupid") {
       const ids = data.targets;
       if (
         !Array.isArray(ids) ||
@@ -1187,7 +1366,7 @@ io.on("connection", socket => {
         throw new Error("เลือกผู้เล่นที่ยังอยู่ในเกมสองคนที่ต่างกัน");
       }
       value = [ids[0], ids[1]];
-    } else if (player.role === "priest") {
+    } else if (!player.blind && player.role === "priest") {
       const target = room.players.find(p => p.id === data.target && !p.alive && !p.left);
       if (!target) throw new Error("ต้องเลือกผู้เล่นที่ออกจากเกมแล้ว");
       value = target.id;
@@ -1195,17 +1374,19 @@ io.on("connection", socket => {
       const target = room.players.find(p => p.id === data.target && p.alive);
       if (!target) throw new Error("เป้าหมายไม่ถูกต้อง");
 
-      if (isWolf(player)) {
-        if (target.id === userId) throw new Error("เลือกตัวเองไม่ได้");
-        if (player.role !== "loneWolf" && isWolf(target)) {
-          throw new Error("เลือกหมาป่าด้วยกันไม่ได้");
+      if (!player.blind) {
+        if (isWolf(player)) {
+          if (target.id === userId) throw new Error("เลือกตัวเองไม่ได้");
+          if (player.role !== "loneWolf" && (isWolf(target) || target.role === "cosplayer")) {
+            throw new Error("เลือกหมาป่าด้วยกันไม่ได้");
+          }
         }
-      }
-      if (["seer", "police"].includes(player.role) && target.id === userId) {
-        throw new Error("เลือกตัวเองไม่ได้");
-      }
-      if (player.role === "doctor" && target.id === player.lastHeal) {
-        throw new Error("หมอเลือกคนเดิมติดกันไม่ได้");
+        if (["seer", "police", "hunter", "thief"].includes(player.role) && target.id === userId) {
+          throw new Error("เลือกตัวเองไม่ได้");
+        }
+        if (player.role === "doctor" && target.id === player.lastHeal) {
+          throw new Error("หมอเลือกคนเดิมติดกันไม่ได้");
+        }
       }
       value = target.id;
     }
@@ -1269,6 +1450,8 @@ io.on("connection", socket => {
     else online.delete(userId);
     const user = users.get(userId);
     if (user) user.lastSeen = Date.now();
+    const mine = rooms.get(userRoom.get(userId))?.players.find(p => p.id === userId);
+    if (mine && !isOnline(userId)) mine.offlineAt = Date.now();
     const room = rooms.get(userRoom.get(userId));
     if (room) broadcastRoom(room);
   });
@@ -1291,6 +1474,24 @@ setInterval(() => {
   broadcastLobby();
 }, 60_000).unref();
 
+// ออฟไลน์เกิน 5 นาที → นำออกจากห้องอัตโนมัติ
+setInterval(() => {
+  const now = Date.now();
+  const kicks = [];
+  for (const room of rooms.values()) {
+    for (const p of room.players) {
+      if (p.left || isOnline(p.id)) continue;
+      p.offlineAt ||= now;
+      if (now - p.offlineAt > 5 * 60 * 1000) kicks.push([room, p.id]);
+    }
+  }
+  for (const [room, id] of kicks) {
+    if (userRoom.get(id) !== room.id) continue;
+    message(room, "public", `${getUser(id).name} ออฟไลน์เกิน 5 นาที ถูกนำออกจากห้อง`);
+    leaveRoom(id);
+  }
+}, 15_000).unref();
+
 setInterval(() => {
   const keep = new Set();
   for (const room of rooms.values()) for (const p of room.players) keep.add(p.id);
@@ -1299,6 +1500,14 @@ setInterval(() => {
     if (!isOnline(id) && !keep.has(id) && now - user.lastSeen > 10 * 60 * 1000) users.delete(id);
   }
 }, 60_000).unref();
+
+app.get("/photo/:id", (req, res) => {
+  const user = /^u[0-9a-f]{16}$/.test(req.params.id) ? users.get(req.params.id) : null;
+  if (!user?.photo) return res.status(404).end();
+  res.setHeader("Content-Type", "image/jpeg");
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  res.end(user.photo);
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 
