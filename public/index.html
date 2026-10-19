@@ -190,6 +190,43 @@
     }
     #connection { color: var(--bad); font-size: 12px; margin-bottom: 10px; }
     footer { padding: 28px 0; color: var(--muted); font-size: 12px; }
+    .player { position: relative; transition: transform .15s, background .15s; }
+    .player.selectable { cursor: pointer; border-color: #6c58b8; }
+    .player.selectable:hover { transform: translateY(-2px); background: #ffffff0d; }
+    .player.selected { border-color: var(--good); box-shadow: 0 0 0 2px var(--good) inset; background: #55d9b214; }
+    .count-badge {
+      position: absolute; top: 8px; right: 8px;
+      min-width: 26px; height: 26px; padding: 0 7px; border-radius: 13px;
+      display: grid; place-items: center;
+      background: var(--bad); color: #1b0b10; font-weight: 800; font-size: 14px;
+    }
+    .pick-note { color: var(--good); }
+    #profileButton { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; }
+    .announce-layer {
+      position: fixed; inset: 0; z-index: 30;
+      display: grid; place-items: center;
+      background: #0006; pointer-events: none;
+    }
+    .announce-card {
+      pointer-events: auto; cursor: pointer; text-align: center;
+      min-width: min(88vw, 360px); max-width: 92vw; padding: 28px 30px;
+      border-radius: 24px; border: 1px solid #5b4a9a;
+      background: linear-gradient(145deg, #1d2744, #121a2d);
+      box-shadow: 0 20px 80px #000a;
+      animation: announce-pop .35s ease;
+    }
+    .announce-card.kind-death, .announce-card.kind-vote { border-color: #a8405a; }
+    .announce-card.kind-safe, .announce-card.kind-revive { border-color: #3aa587; }
+    .announce-card.kind-end { border-color: #d6a93f; }
+    .announce-card h2 { margin: 6px 0 4px; font-size: 26px; }
+    .announce-icon { font-size: 44px; }
+    .announce-players { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 16px 0 6px; }
+    .announce-player small { display: block; color: var(--muted); }
+    .announce-player .avatar { margin-bottom: 6px; }
+    @keyframes announce-pop {
+      from { opacity: 0; transform: scale(.85) translateY(12px); }
+      to { opacity: 1; transform: none; }
+    }
     @media (max-width: 850px) {
       .game-layout { grid-template-columns: 1fr; }
       .chat-panel { position: static; }
@@ -217,31 +254,17 @@
     <div id="connection" hidden></div>
 
     <main>
-      <section id="authPage">
+      <section id="loadingPage">
         <div class="hero">
           <div class="eyebrow">เกมหมาป่า</div>
           <h1>ใครคือหมาป่า<br>ในหมู่บ้านนี้?</h1>
-          <p>เล่นกับเพื่อน คุยกัน แล้วหาให้เจอว่าใครเป็นหมาป่า</p>
+          <p>กำลังเข้าสู่หมู่บ้าน...</p>
         </div>
-
-        <form id="authForm" class="panel auth stack">
-          <h2 id="authTitle">เข้าสู่ระบบ</h2>
-          <label>
-            ชื่อผู้เล่น
-            <input id="authName" minlength="3" maxlength="24" autocomplete="username" required>
-          </label>
-          <label>
-            รหัสผ่าน
-            <input id="authPassword" type="password" minlength="8" autocomplete="current-password" required>
-          </label>
-          <button id="authSubmit" type="submit">ล็อกอิน</button>
-          <button id="toggleAuth" class="secondary" type="button">ยังไม่มีบัญชี? สมัครสมาชิก</button>
-        </form>
       </section>
 
       <section id="homePage" hidden>
         <div class="hero">
-          <div class="eyebrow">ยินดีต้อนรับ</div>
+          <div class="eyebrow" id="homeName">ยินดีต้อนรับ</div>
           <h1>พร้อมเล่นหรือยัง?</h1>
           <p>เข้าห้อง สร้างห้อง หรือเปลี่ยนรูปตัวเองก่อนเริ่มเกม</p>
         </div>
@@ -259,8 +282,8 @@
           </button>
           <button class="panel menu" data-page="avatarPage">
             <span class="menu-icon">🎭</span>
-            <b>เปลี่ยนรูปตัวเอง</b>
-            <small>เลือกตัวละครและสี</small>
+            <b>ชื่อและรูปตัวเอง</b>
+            <small>เปลี่ยนชื่อ ตัวละคร และสี</small>
           </button>
         </div>
       </section>
@@ -352,11 +375,22 @@
 
       <section id="avatarPage" hidden>
         <div class="row between">
-          <h2>เปลี่ยนรูปตัวเอง</h2>
+          <h2>ชื่อและรูปตัวเอง</h2>
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
         <div class="panel stack">
+          <form id="nameForm" class="stack">
+            <label>
+              ชื่อของคุณ
+              <input id="nameInput" minlength="3" maxlength="24" autocomplete="off" required>
+            </label>
+            <div class="row">
+              <button>บันทึกชื่อ</button>
+              <button id="randomName" class="secondary" type="button">🎲 สุ่มชื่อใหม่</button>
+            </div>
+            <small>ชื่อห้ามซ้ำกับคนอื่น และเปลี่ยนระหว่างเล่นเกมไม่ได้</small>
+          </form>
           <div id="avatarPreview" class="avatar preview"></div>
           <h3>ตัวละคร</h3>
           <div id="avatarChoices" class="avatar-choices"></div>
@@ -425,6 +459,7 @@
   </div>
 
   <div id="toast" role="status" hidden></div>
+  <div id="announceLayer" class="announce-layer" hidden></div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/app.js"></script>
