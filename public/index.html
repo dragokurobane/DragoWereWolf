@@ -219,13 +219,13 @@
     <main>
       <section id="authPage">
         <div class="hero">
-          <div class="eyebrow">A VILLAGE OF SECRETS</div>
-          <h1>เมื่อดวงจันทร์ขึ้น<br>ใครยังเป็นคนเดิม?</h1>
-          <p>รวมเพื่อนเข้าสู่หมู่บ้าน แบ่งปันเบาะแส จับพิรุธจากบทสนทนา และค้นหาหมาป่าก่อนจะสายเกินไป</p>
+          <div class="eyebrow">เกมหมาป่า</div>
+          <h1>ใครคือหมาป่า<br>ในหมู่บ้านนี้?</h1>
+          <p>เล่นกับเพื่อน คุยกัน แล้วหาให้เจอว่าใครเป็นหมาป่า</p>
         </div>
 
         <form id="authForm" class="panel auth stack">
-          <h2 id="authTitle">เข้าสู่หมู่บ้าน</h2>
+          <h2 id="authTitle">เข้าสู่ระบบ</h2>
           <label>
             ชื่อผู้เล่น
             <input id="authName" minlength="3" maxlength="24" autocomplete="username" required>
@@ -241,45 +241,45 @@
 
       <section id="homePage" hidden>
         <div class="hero">
-          <div class="eyebrow">WELCOME TO MOONFALL</div>
-          <h1>คืนนี้<br>ไว้ใจใครได้บ้าง?</h1>
-          <p>เริ่มเกมกับเพื่อน สร้างกติกาหมู่บ้านของคุณ และเลือกตัวตนก่อนค่ำคืนมาถึง</p>
+          <div class="eyebrow">ยินดีต้อนรับ</div>
+          <h1>พร้อมเล่นหรือยัง?</h1>
+          <p>เข้าห้อง สร้างห้อง หรือเปลี่ยนรูปตัวเองก่อนเริ่มเกม</p>
         </div>
 
         <div class="grid3">
           <button class="panel menu" data-page="browsePage">
             <span class="menu-icon">🌙</span>
-            <b>เริ่มเกม</b>
-            <small>เข้าด้วยเลขห้อง หรือเลือกห้องสาธารณะ</small>
+            <b>เข้าห้อง</b>
+            <small>ใส่เลขห้อง หรือเลือกห้องที่เปิดอยู่</small>
           </button>
           <button class="panel menu" data-page="createPage">
             <span class="menu-icon">🏡</span>
             <b>สร้างห้อง</b>
-            <small>ตั้งค่าจำนวนคน บทบาท และช่วงเวลา</small>
+            <small>ตั้งจำนวนคน บทบาท และเวลา</small>
           </button>
           <button class="panel menu" data-page="avatarPage">
             <span class="menu-icon">🎭</span>
-            <b>แต่งตัวอวตาร</b>
-            <small>เลือกตัวละครและสีประจำตัว</small>
+            <b>เปลี่ยนรูปตัวเอง</b>
+            <small>เลือกตัวละครและสี</small>
           </button>
         </div>
       </section>
 
       <section id="browsePage" hidden>
         <div class="row between">
-          <h2>ค้นหาหมู่บ้าน</h2>
+          <h2>หาห้อง</h2>
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
         <div class="grid2">
           <form id="joinForm" class="panel stack">
-            <h3>เข้าห้องตามเลข</h3>
+            <h3>ใส่เลขห้อง</h3>
             <label>
               เลขห้อง 8 หลัก
               <input id="joinCode" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" required>
             </label>
-            <button>เข้าร่วมห้อง</button>
-            <small>ห้องส่วนตัวจะไม่แสดงในรายการด้านข้าง</small>
+            <button>เข้าห้อง</button>
+            <small>ห้องส่วนตัวจะไม่ขึ้นในรายการ</small>
           </form>
 
           <div class="panel">
@@ -291,7 +291,7 @@
 
       <section id="createPage" hidden>
         <div class="row between">
-          <h2>สร้างหมู่บ้าน</h2>
+          <h2>สร้างห้อง</h2>
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
@@ -299,7 +299,7 @@
           <div class="grid2">
             <label>
               ชื่อห้อง
-              <input name="title" maxlength="50" value="หมู่บ้านคืนจันทร์" required>
+              <input name="title" maxlength="50" value="ห้องใหม่" required>
             </label>
             <label>
               จำนวนผู้เล่นสูงสุด
@@ -308,42 +308,42 @@
             <label>
               สถานะห้อง
               <select name="visibility">
-                <option value="private">ส่วนตัว — เข้าด้วยเลขห้อง</option>
-                <option value="public">สาธารณะ — แสดงในรายการ</option>
+                <option value="private">ส่วนตัว (ต้องมีเลขห้อง)</option>
+                <option value="public">สาธารณะ (ขึ้นในรายการ)</option>
               </select>
             </label>
             <label>
-              หมาป่าคิดเป็นกี่เปอร์เซ็นต์ของผู้เล่น
+              หมาป่ากี่ % ของผู้เล่น
               <input name="wolfPercent" type="number" min="1" max="49" value="25" required>
             </label>
           </div>
 
-          <small>ปัดจำนวนหมาป่าลง แต่มีอย่างน้อย 1 ตัวเมื่อเริ่มเกม และต้องน้อยกว่าครึ่งหนึ่งของผู้เล่น</small>
+          <small>ปัดลง อย่างน้อย 1 ตัว และต้องไม่ถึงครึ่งของผู้เล่น</small>
 
-          <h3>บทบาทพิเศษฝ่ายชาวบ้าน / อิสระ</h3>
+          <h3>บทบาทพิเศษ (ชาวบ้านและฝ่ายอิสระ)</h3>
           <div class="grid2">
-            <label class="check-row"><input type="checkbox" name="role" value="sheriff"> นายอำเภอ — โหวต 2 เท่า</label>
-            <label class="check-row"><input type="checkbox" name="role" value="doctor" checked> หมอ — ปกป้องคน</label>
-            <label class="check-row"><input type="checkbox" name="role" value="seer" checked> ผู้หยั่งรู้ — ตรวจฝ่าย</label>
-            <label class="check-row"><input type="checkbox" name="role" value="cupid"> ผู้ผูกคู่รัก — เลือกคู่คืนแรก</label>
-            <label class="check-row"><input type="checkbox" name="role" value="knight"> อัศวิน — ปกป้องสำเร็จ 1 ครั้ง</label>
-            <label class="check-row"><input type="checkbox" name="role" value="police"> ตำรวจ — จัดการ 1 ครั้ง ผิดออกด้วย</label>
-            <label class="check-row"><input type="checkbox" name="role" value="priest"> นักบวช — คืนชีพ 1 ครั้ง</label>
-            <label class="check-row"><input type="checkbox" name="role" value="jester"> ตัวตลก — ถูกโหวตออกแล้วชนะ</label>
-            <label class="check-row"><input type="checkbox" name="role" value="pet"> สัตว์เลี้ยงและเจ้าของ — มาเป็นคู่</label>
+            <label class="check-row"><input type="checkbox" name="role" value="sheriff"> นายอำเภอ: โหวตนับ 2 คะแนน</label>
+            <label class="check-row"><input type="checkbox" name="role" value="doctor" checked> หมอ: ช่วยคนไม่ให้ตาย</label>
+            <label class="check-row"><input type="checkbox" name="role" value="seer" checked> ผู้หยั่งรู้: ตรวจว่าใครเป็นหมาป่า</label>
+            <label class="check-row"><input type="checkbox" name="role" value="cupid"> ผู้ผูกคู่รัก: เลือกคู่รักคืนแรก</label>
+            <label class="check-row"><input type="checkbox" name="role" value="knight"> อัศวิน: กันภัยให้คนอื่น 1 ครั้ง</label>
+            <label class="check-row"><input type="checkbox" name="role" value="police"> ตำรวจ: จัดการคน 1 ครั้ง ถ้าผิดตัวเองก็ออก</label>
+            <label class="check-row"><input type="checkbox" name="role" value="priest"> นักบวช: ชุบชีวิตคน 1 ครั้ง</label>
+            <label class="check-row"><input type="checkbox" name="role" value="jester"> ตัวตลก: ถูกโหวตออกคือชนะ</label>
+            <label class="check-row"><input type="checkbox" name="role" value="pet"> สัตว์เลี้ยงกับเจ้าของ: มาเป็นคู่</label>
           </div>
 
-          <h3>หมาป่าพิเศษ — แทนที่หมาป่าปกติ</h3>
+          <h3>หมาป่าพิเศษ (แทนหมาป่าธรรมดา)</h3>
           <div class="grid2">
-            <label class="check-row"><input type="checkbox" name="role" value="loneWolf"> หมาป่าเดียวดาย — ไม่รู้จักฝูง ไม่มีแชทหมาป่า</label>
-            <label class="check-row"><input type="checkbox" name="role" value="hybrid"> ลูกครึ่ง — ผู้หยั่งรู้ตรวจเป็นชาวบ้าน</label>
-            <label class="check-row"><input type="checkbox" name="role" value="alpha"> จ่าฝูง — คะแนนโหวตกลางคืน 2 เท่า</label>
+            <label class="check-row"><input type="checkbox" name="role" value="loneWolf"> หมาป่าเดียวดาย: ไม่รู้ว่าใครเป็นพวก และไม่มีแชทหมาป่า</label>
+            <label class="check-row"><input type="checkbox" name="role" value="hybrid"> ลูกครึ่ง: ผู้หยั่งรู้จะเห็นเป็นชาวบ้าน</label>
+            <label class="check-row"><input type="checkbox" name="role" value="alpha"> จ่าฝูง: โหวตกลางคืนนับ 2 คะแนน</label>
           </div>
 
           <div class="grid3" style="margin-top:10px">
-            <label>กลางคืน / วินาที<input name="nightSeconds" type="number" min="15" max="600" value="45" required></label>
-            <label>สนทนากลางวัน / วินาที<input name="daySeconds" type="number" min="15" max="600" value="90" required></label>
-            <label>ลงคะแนน / วินาที<input name="voteSeconds" type="number" min="15" max="600" value="30" required></label>
+            <label>กลางคืน (วินาที)<input name="nightSeconds" type="number" min="15" max="600" value="45" required></label>
+            <label>คุยกลางวัน (วินาที)<input name="daySeconds" type="number" min="15" max="600" value="90" required></label>
+            <label>โหวต (วินาที)<input name="voteSeconds" type="number" min="15" max="600" value="30" required></label>
           </div>
 
           <button>สร้างห้อง</button>
@@ -352,7 +352,7 @@
 
       <section id="avatarPage" hidden>
         <div class="row between">
-          <h2>แต่งตัวอวตาร</h2>
+          <h2>เปลี่ยนรูปตัวเอง</h2>
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
@@ -360,9 +360,9 @@
           <div id="avatarPreview" class="avatar preview"></div>
           <h3>ตัวละคร</h3>
           <div id="avatarChoices" class="avatar-choices"></div>
-          <h3>สีประจำตัว</h3>
+          <h3>สี</h3>
           <div id="colorChoices" class="color-choices"></div>
-          <button id="saveAvatar">บันทึกอวตาร</button>
+          <button id="saveAvatar">บันทึก</button>
         </div>
       </section>
 
@@ -392,14 +392,14 @@
 
             <div class="panel">
               <div class="row between">
-                <h3>ผู้เล่นในหมู่บ้าน</h3>
+                <h3>ผู้เล่น</h3>
                 <span id="playerCount" class="badge"></span>
               </div>
               <div id="players" class="players"></div>
             </div>
 
             <div id="notesPanel" class="panel" hidden>
-              <h3>บันทึกลับของคุณ</h3>
+              <h3>โน้ตลับของคุณ</h3>
               <ul id="notes" class="notes"></ul>
             </div>
 
@@ -407,7 +407,7 @@
           </div>
 
           <aside class="panel chat-panel">
-            <h3>บทสนทนา</h3>
+            <h3>แชท</h3>
             <small id="chatStatus"></small>
             <div id="chatTabs" class="chat-tabs"></div>
             <div id="messages" class="messages" aria-live="polite"></div>
@@ -421,7 +421,7 @@
       </section>
     </main>
 
-    <footer>MOONFALL · Social deduction for friends</footer>
+    <footer>MOONFALL · เกมหมาป่าเล่นกับเพื่อน</footer>
   </div>
 
   <div id="toast" role="status" hidden></div>
