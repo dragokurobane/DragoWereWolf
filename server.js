@@ -17,6 +17,7 @@ const PROD = process.env.NODE_ENV === "production";
 const USER_FILE = path.join(__dirname, "users.json");
 
 app.disable("x-powered-by");
+if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
 app.use(express.json({ limit: "8kb" }));
 
 app.use((req, res, next) => {
@@ -212,7 +213,7 @@ app.post("/api/register", limitLogin, async (req, res) => {
     const password = String(req.body.password || "");
     const nameKey = name.toLocaleLowerCase();
 
-    if (!/^[\p{L}\p{N}_ -]{3,24}$/u.test(name)) {
+    if (!/^[\p{L}\p{M}\p{N}_ -]{3,24}$/u.test(name)) {
       return res.status(400).json({
         error: "ชื่อยาว 3–24 ตัว ใช้ตัวอักษร ตัวเลข ช่องว่าง _ หรือ -"
       });
