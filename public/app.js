@@ -301,19 +301,25 @@ $("#copyCode").onclick = () => attempt(async () => {
   toast("คัดลอกเลขห้องแล้ว");
 });
 
-$("#leaveRoom").onclick = () => attempt(() => emit("leave"));
+$("#leaveRoom").onclick = () => attempt(async () => {
+  if (room && !["lobby", "ended"].includes(room.phase)) {
+    if (!confirm("ออกจากเกมตอนนี้? คุณจะถูกนับว่าออกจากเกมและกลับเข้ามาเล่นรอบนี้ไม่ได้")) return;
+  }
+  await emit("leave");
+});
 
 function renderRoom() {
   $("#roomTitle").textContent = room.title;
   $("#roomCode").textContent = "เลขห้อง " + room.id;
   $("#roomVisibility").textContent = room.settings.visibility === "private" ? "ส่วนตัว" : "สาธารณะ";
-  $("#phaseLabel").textContent = room.phaseName + (room.round ? ` · รอบ ${room.round}` : "");
+  $("#phaseLabel").textContent = room.phaseName + (room.round && room.phase !== "lobby" ? ` · ${room.phase === "night" ? "คืน" : "วัน"}ที่ ${room.round}` : "");
   $("#playerCount").textContent = `${room.players.length} / ${room.settings.capacity ?? "∞"} คน`;
 
-  $("#leaveRoom").disabled = !["lobby", "ended"].includes(room.phase);
-  $("#leaveRoom").textContent = $("#leaveRoom").disabled ? "ออกจากห้องได้หลังจบเกม — รีเฟรชแล้วกลับมาได้" : "ออกจากห้อง";
+  $("#leaveRoom").disabled = false;
+  $("#leaveRoom").textContent = ["lobby", "ended"].includes(room.phase) ? "ออกจากห้อง" : "ออกจากเกม";
 
   renderLobby();
+  renderSettings();
   renderPlayers();
   renderRole();
   renderAction();
@@ -331,12 +337,17 @@ function renderLobby() {
   const specialNames = plan.specials.map(role => ROLE_NAMES[role]).join(", ");
   let warning = "";
 
-  if (!plan.enoughWolfSlots) {
-    warning += `<p class="bad">โควตาหมาป่า ${plan.wolves} คน ไม่พอสำหรับหมาป่าพิเศษ ${plan.wolfSpecials.length} บทบาท</p>`;
+  if (plan.trimmed) {
+    warning += `<p class="muted">เลือกบทบาทไว้ ${plan.requested} แต่ผู้เล่นมีไม่พอ ตอนเริ่มเกมระบบจะสุ่มใช้ ${plan.used} บทบาท</p>`;
   }
-  if (!plan.enoughPlayerSlots) {
-    warning += `<p class="bad">ผู้เล่นไม่พอสำหรับบทบาทที่เลือก กรุณารอผู้เล่นเพิ่ม</p>`;
+  const notReady = room.players.filter(p => !p.ready).length;
+  const offline = room.players.filter(p => !p.online).length;
+  const canStart = room.players.length >= 4 && !notReady && !offline;
+  if (room.players.length < 4) {
+    warning += `<p class="bad">ต้องมีผู้เล่นอย่างน้อย 4 คนจึงจะเริ่มเกมได้</p>`;
   }
+  if (notReady) warning += `<p class="bad">ยังมีผู้เล่นที่ไม่พร้อม ${notReady} คน</p>`;
+  if (offline) warning += `<p class="bad">ยังมีผู้เล่นออฟไลน์ ${offline} คน</p>`;
 
   panel.innerHTML = `
     <h3>เตรียมตัวก่อนเริ่มเกม</h3>
@@ -345,14 +356,14 @@ function renderLobby() {
       <span class="badge">ชาวบ้านทั่วไป ${plan.villagers} คน</span>
       <span class="badge">ฝ่ายอิสระ ${plan.neutrals.length} คน</span>
     </div>
-    <small>บทบาทพิเศษ: ${esc(specialNames || "ไม่มี")}</small>
+    <small>บทบาทพิเศษที่เลือก: ${esc(specialNames || "ไม่มี")}</small>
     <small>กลางคืน ${room.settings.nightSeconds}s · สนทนา ${room.settings.daySeconds}s · โหวต ${room.settings.voteSeconds}s</small>
     ${warning}
     <div class="row">
       <button id="readyButton" class="${room.me.ready ? "secondary" : "success"}">
         ${room.me.ready ? "ยกเลิกพร้อม" : "ฉันพร้อมแล้ว"}
       </button>
-      ${room.hostId === me.id ? `<button id="startButton" ${plan.enough ? "" : "disabled"}>เริ่มเกม</button>` : "<small>รอเจ้าของห้องเริ่มเกม</small>"}
+      ${room.hostId === me.id ? `<button id="startButton" ${canStart ? "" : "disabled"}>เริ่มเกม</button>` : "<small>รอเจ้าของห้องเริ่มเกม</small>"}
     </div>
   `;
 
@@ -360,6 +371,101 @@ function renderLobby() {
   if ($("#startButton")) {
     $("#startButton").onclick = () => attempt(() => emit("start"));
   }
+}
+
+const ROLE_OPTIONS = [
+  ["sheriff", "นายอำเภอ — โหวต 2 เท่า"],
+  ["doctor", "หมอ — ปกป้องคน"],
+  ["seer", "ผู้หยั่งรู้ — ตรวจฝ่าย"],
+  ["cupid", "ผู้ผูกคู่รัก — เลือกคู่คืนแรก"],
+  ["knight", "อัศวิน — ปกป้องสำเร็จ 1 ครั้ง"],
+  ["police", "ตำรวจ — จัดการ 1 ครั้ง ผิดออกด้วย"],
+  ["priest", "นักบวช — คืนชีพ 1 ครั้ง"],
+  ["jester", "ตัวตลก — ถูกโหวตออกแล้วชนะ"],
+  ["pet", "สัตว์เลี้ยงและเจ้าของ — มาเป็นคู่"]
+];
+const WOLF_OPTIONS = [
+  ["loneWolf", "หมาป่าเดียวดาย — ไม่รู้จักฝูง ไม่มีแชทหมาป่า"],
+  ["hybrid", "ลูกครึ่ง — ผู้หยั่งรู้ตรวจเป็นชาวบ้าน"],
+  ["alpha", "จ่าฝูง — คะแนนโหวตกลางคืน 2 เท่า"]
+];
+
+let settingsKey = "";
+
+function renderSettings() {
+  const panel = $("#settingsPanel");
+  const isHost = room.hostId === me.id;
+  panel.hidden = room.phase !== "lobby" || !isHost;
+  if (panel.hidden) {
+    settingsKey = "";
+    return;
+  }
+
+  // สร้างฟอร์มใหม่เฉพาะเมื่อค่าตั้งค่าเปลี่ยน เพื่อไม่ให้ที่กำลังพิมพ์อยู่หาย
+  const key = JSON.stringify([room.id, room.title, room.settings]);
+  if (key === settingsKey) return;
+  settingsKey = key;
+
+  const wasOpen = panel.querySelector("details")?.open;
+  const s = room.settings;
+  const check = ([value, label]) => `
+    <label class="check-row">
+      <input type="checkbox" name="role" value="${value}" ${s.roles[value] ? "checked" : ""}> ${esc(label)}
+    </label>`;
+
+  panel.innerHTML = `
+    <details ${wasOpen ? "open" : ""}>
+      <summary><b>ตั้งค่าห้อง</b> (เฉพาะเจ้าของห้อง)</summary>
+      <form id="settingsForm" class="stack" style="margin-top:14px">
+        <div class="grid2">
+          <label>ชื่อห้อง<input name="title" maxlength="50" value="${esc(room.title)}" required></label>
+          <label>จำนวนผู้เล่นสูงสุด
+            <input name="capacity" type="number" min="4" step="1" value="${s.capacity ?? ""}" placeholder="เว้นว่าง = ไม่จำกัด">
+          </label>
+          <label>สถานะห้อง
+            <select name="visibility">
+              <option value="private" ${s.visibility === "private" ? "selected" : ""}>ส่วนตัว — เข้าด้วยเลขห้อง</option>
+              <option value="public" ${s.visibility === "public" ? "selected" : ""}>สาธารณะ — แสดงในรายการ</option>
+            </select>
+          </label>
+          <label>หมาป่าคิดเป็นกี่เปอร์เซ็นต์
+            <input name="wolfPercent" type="number" min="1" max="49" value="${s.wolfPercent}" required>
+          </label>
+        </div>
+        <h3>บทบาทพิเศษฝ่ายชาวบ้าน / อิสระ</h3>
+        <div class="grid2">${ROLE_OPTIONS.map(check).join("")}</div>
+        <h3>หมาป่าพิเศษ</h3>
+        <div class="grid2">${WOLF_OPTIONS.map(check).join("")}</div>
+        <div class="grid3">
+          <label>กลางคืน / วินาที<input name="nightSeconds" type="number" min="15" max="600" value="${s.nightSeconds}" required></label>
+          <label>สนทนา / วินาที<input name="daySeconds" type="number" min="15" max="600" value="${s.daySeconds}" required></label>
+          <label>ลงคะแนน / วินาที<input name="voteSeconds" type="number" min="15" max="600" value="${s.voteSeconds}" required></label>
+        </div>
+        <small>เลือกบทบาทมากกว่าจำนวนผู้เล่นได้ ตอนเริ่มเกมระบบจะสุ่มเลือกให้พอดี</small>
+        <button>บันทึกการตั้งค่า</button>
+      </form>
+    </details>
+  `;
+
+  $("#settingsForm").onsubmit = event => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const roles = {};
+    form.getAll("role").forEach(role => roles[role] = true);
+    attempt(async () => {
+      await emit("settings", {
+        title: form.get("title"),
+        capacity: form.get("capacity"),
+        visibility: form.get("visibility"),
+        wolfPercent: Number(form.get("wolfPercent")),
+        nightSeconds: Number(form.get("nightSeconds")),
+        daySeconds: Number(form.get("daySeconds")),
+        voteSeconds: Number(form.get("voteSeconds")),
+        roles
+      });
+      toast("บันทึกการตั้งค่าแล้ว");
+    });
+  };
 }
 
 function renderPlayers() {
@@ -374,7 +480,7 @@ function renderPlayers() {
         ${player.bonded ? '<span class="badge">คู่สายสัมพันธ์</span>' : ""}
       </div>
       <small class="${player.online ? "good" : "bad"}">${player.online ? "ออนไลน์" : "ออฟไลน์"}</small>
-      ${room.phase === "lobby" ? `<small class="${player.ready ? "good" : ""}">${player.ready ? "พร้อมแล้ว" : "ยังไม่พร้อม"}</small>` : `<small>${player.alive ? "ยังอยู่ในเกม" : "ออกจากเกมแล้ว"}</small>`}
+      ${room.phase === "lobby" ? `<small class="${player.ready ? "good" : ""}">${player.ready ? "พร้อมแล้ว" : "ยังไม่พร้อม"}</small>` : `<small>${player.left ? "ออกจากห้องแล้ว" : player.alive ? "ยังอยู่ในเกม" : "ออกจากเกมแล้ว"}</small>`}
       ${player.roleName ? `<small>${esc(player.roleName)}</small>` : ""}
     </div>
   `).join("");
@@ -391,7 +497,7 @@ function renderRole() {
       ${!room.me.alive ? '<span class="badge bad">คุณออกจากเกมแล้ว ใช้แชทผู้ตายได้</span>' : ""}
       ${room.me.clue ? `
         <div class="clue">
-          <small>คืน ${room.me.clue.round} · ${esc(room.me.clue.type)}</small>
+          <small>วันที่ ${room.me.clue.round} · ${esc(room.me.clue.type)}</small>
           <strong>${esc(room.me.clue.text)}</strong>
           <small>เลือกเปิดเผยหรือเก็บไว้ เพื่อประกอบการสนทนา</small>
         </div>
@@ -421,7 +527,7 @@ function renderAction() {
     policeUsed: room.me.policeUsed,
     priestUsed: room.me.priestUsed,
     lastHeal: room.me.lastHeal,
-    players: room.players.map(p => [p.id, p.alive])
+    players: room.players.map(p => [p.id, p.alive, p.left])
   });
 
   if (key === actionKey) return;
@@ -433,7 +539,7 @@ function renderAction() {
   if (!room.me.alive || ["lobby", "ended"].includes(room.phase)) return;
 
   const alive = room.players.filter(p => p.alive);
-  const dead = room.players.filter(p => !p.alive);
+  const dead = room.players.filter(p => !p.alive && !p.left);
 
   function showWaiting(text) {
     panel.hidden = false;
@@ -457,7 +563,7 @@ function renderAction() {
     panel.hidden = false;
     panel.innerHTML = `
       <h3>ช่วงสนทนา</h3>
-      <p class="muted">แลกเปลี่ยนเบาะแส ตั้งคำถาม และสังเกตคำตอบ ระวังตัวตลกที่อาจพยายามทำให้ตัวเองถูกโหวต</p>
+      <p class="muted">${room.round === 1 ? "วันแรกยังไม่มีการโหวต — " : ""}แลกเปลี่ยนเบาะแส ตั้งคำถาม และสังเกตคำตอบ ระวังตัวตลกที่อาจพยายามทำให้ตัวเองถูกโหวต</p>
     `;
     return;
   }
