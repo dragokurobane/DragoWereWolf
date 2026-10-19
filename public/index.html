@@ -227,6 +227,7 @@
       from { opacity: 0; transform: scale(.85) translateY(12px); }
       to { opacity: 1; transform: none; }
     }
+    .kick-button { width: 100%; margin-top: 8px; padding: 6px 10px; font-size: 12px; }
     @media (max-width: 850px) {
       .game-layout { grid-template-columns: 1fr; }
       .chat-panel { position: static; }
@@ -343,25 +344,7 @@
 
           <small>ปัดลง อย่างน้อย 1 ตัว และต้องไม่ถึงครึ่งของผู้เล่น</small>
 
-          <h3>บทบาทพิเศษ (ชาวบ้านและฝ่ายอิสระ)</h3>
-          <div class="grid2">
-            <label class="check-row"><input type="checkbox" name="role" value="sheriff"> นายอำเภอ: โหวตนับ 2 คะแนน</label>
-            <label class="check-row"><input type="checkbox" name="role" value="doctor" checked> หมอ: ช่วยคนไม่ให้ตาย</label>
-            <label class="check-row"><input type="checkbox" name="role" value="seer" checked> ผู้หยั่งรู้: ตรวจว่าใครเป็นหมาป่า</label>
-            <label class="check-row"><input type="checkbox" name="role" value="cupid"> ผู้ผูกคู่รัก: เลือกคู่รักคืนแรก</label>
-            <label class="check-row"><input type="checkbox" name="role" value="knight"> อัศวิน: กันภัยให้คนอื่น 1 ครั้ง</label>
-            <label class="check-row"><input type="checkbox" name="role" value="police"> ตำรวจ: จัดการคน 1 ครั้ง ถ้าผิดตัวเองก็ออก</label>
-            <label class="check-row"><input type="checkbox" name="role" value="priest"> นักบวช: ชุบชีวิตคน 1 ครั้ง</label>
-            <label class="check-row"><input type="checkbox" name="role" value="jester"> ตัวตลก: ถูกโหวตออกคือชนะ</label>
-            <label class="check-row"><input type="checkbox" name="role" value="pet"> สัตว์เลี้ยงกับเจ้าของ: มาเป็นคู่</label>
-          </div>
-
-          <h3>หมาป่าพิเศษ (แทนหมาป่าธรรมดา)</h3>
-          <div class="grid2">
-            <label class="check-row"><input type="checkbox" name="role" value="loneWolf"> หมาป่าเดียวดาย: ไม่รู้ว่าใครเป็นพวก และไม่มีแชทหมาป่า</label>
-            <label class="check-row"><input type="checkbox" name="role" value="hybrid"> ลูกครึ่ง: ผู้หยั่งรู้จะเห็นเป็นชาวบ้าน</label>
-            <label class="check-row"><input type="checkbox" name="role" value="alpha"> จ่าฝูง: โหวตกลางคืนนับ 2 คะแนน</label>
-          </div>
+          <div id="createRoles" class="stack"></div>
 
           <div class="grid3" style="margin-top:10px">
             <label>กลางคืน (วินาที)<input name="nightSeconds" type="number" min="15" max="600" value="45" required></label>
@@ -379,25 +362,22 @@
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
-        <div class="panel stack">
-          <form id="nameForm" class="stack">
-            <label>
-              ชื่อของคุณ
-              <input id="nameInput" minlength="3" maxlength="24" autocomplete="off" required>
-            </label>
-            <div class="row">
-              <button>บันทึกชื่อ</button>
-              <button id="randomName" class="secondary" type="button">🎲 สุ่มชื่อใหม่</button>
-            </div>
-            <small>ชื่อห้ามซ้ำกับคนอื่น และเปลี่ยนระหว่างเล่นเกมไม่ได้</small>
-          </form>
+        <form id="profileForm" class="panel stack">
+          <label>
+            ชื่อของคุณ
+            <input id="nameInput" minlength="3" maxlength="24" autocomplete="off" required>
+          </label>
+          <div class="row">
+            <button id="randomName" class="secondary" type="button">🎲 สุ่มชื่อ</button>
+          </div>
+          <small>ชื่อห้ามซ้ำกับคนอื่น และเปลี่ยนระหว่างเล่นเกมไม่ได้ ต้องกดบันทึกด้านล่างเพื่อให้มีผล</small>
           <div id="avatarPreview" class="avatar preview"></div>
           <h3>ตัวละคร</h3>
           <div id="avatarChoices" class="avatar-choices"></div>
           <h3>สี</h3>
           <div id="colorChoices" class="color-choices"></div>
-          <button id="saveAvatar">บันทึก</button>
-        </div>
+          <button>บันทึก</button>
+        </form>
       </section>
 
       <section id="roomPage" hidden>
