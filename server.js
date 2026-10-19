@@ -1,9 +1,7 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const fs = require("fs");
 const path = require("path");
 
 const app = express();
@@ -14,7 +12,6 @@ const io = new Server(server, {
 
 const PORT = Number(process.env.PORT || 3000);
 const PROD = process.env.NODE_ENV === "production";
-const USER_FILE = path.join(__dirname, "users.json");
 
 app.disable("x-powered-by");
 if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
@@ -27,14 +24,10 @@ app.use((req, res, next) => {
   next();
 });
 
-let users = fs.existsSync(USER_FILE)
-  ? JSON.parse(fs.readFileSync(USER_FILE, "utf8"))
-  : [];
-
-const sessions = new Map();
+const users = new Map();
+const online = new Map();
 const rooms = new Map();
 const userRoom = new Map();
-const loginBuckets = new Map();
 
 const AVATARS = ["🐺", "🦊", "🐱", "🐼", "🐸", "🦉", "🐰", "🦁"];
 const COLORS = [
@@ -65,17 +58,17 @@ const ROLE_NAMES = {
 };
 
 const ROLE_DESCRIPTIONS = {
-  villager: "ใช้เบาะแสและบทสนทนาเพื่อค้นหาฝ่ายหมาป่า",
-  wolf: "ร่วมกับฝูงเลือกเป้าหมายตอนกลางคืน",
+  villager: "ได้รับคำเดียวกับชาวบ้านคนอื่น ใช้คำนี้ใบ้กันโดยไม่พูดตรง ๆ เพื่อหาคนที่ไม่รู้คำ (หมาป่า)",
+  wolf: "ไม่ได้รับคำของชาวบ้าน ต้องแกล้งทำเป็นรู้ และร่วมกับฝูงเลือกเป้าหมายตอนกลางคืน",
   sheriff: "คะแนนโหวตกลางวันมีน้ำหนัก 2 คะแนน",
   doctor: "ปกป้องหนึ่งคนต่อคืน แต่เลือกคนเดิมติดกันไม่ได้",
   seer: "ตรวจหนึ่งคนต่อคืน แต่ลูกครึ่งจะให้ผลว่าไม่ใช่หมาป่า",
   cupid: "คืนแรกเลือกผู้เล่นสองคนเป็นคู่รัก รวมตัวเองได้",
   knight: "ปกป้องหนึ่งคนต่อคืน พลังหมดเมื่อช่วยสำเร็จ",
   police: "จัดการเป้าหมายได้ 1 ครั้ง หากเลือกคนที่ไม่ใช่ฝ่ายหมาป่าจะออกจากเกมด้วย",
-  loneWolf: "อยู่ฝ่ายหมาป่า แต่ไม่รู้ว่าใครเป็นพวกเดียวกัน และไม่มีแชทหมาป่า",
-  hybrid: "อยู่ฝ่ายหมาป่า แต่ผู้หยั่งรู้จะตรวจคุณเป็นชาวบ้าน",
-  alpha: "อยู่ฝ่ายหมาป่า คะแนนเลือกเป้าหมายกลางคืนมีน้ำหนัก 2",
+  loneWolf: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน ไม่รู้ว่าใครเป็นพวกเดียวกัน และไม่มีแชทหมาป่า",
+  hybrid: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน แต่ผู้หยั่งรู้จะตรวจคุณเป็นชาวบ้าน",
+  alpha: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน คะแนนเลือกเป้าหมายกลางคืนมีน้ำหนัก 2",
   priest: "คืนชีพผู้เล่นที่ออกจากเกมได้ 1 ครั้ง",
   jester: "ไม่มีฝ่าย หากถูกโหวตออกตอนกลางวันจะชนะทันที",
   pet: "รู้จักเจ้าของ หากเจ้าของถูกจัดการ คุณจะรู้ข้อมูลผู้ลงมือ",
@@ -124,174 +117,172 @@ function nightVoteWeight(player) {
   return player.role === "alpha" ? 2 : 1;
 }
 
-function saveUsers() {
-  const temporary = USER_FILE + ".tmp";
-  fs.writeFileSync(temporary, JSON.stringify(users, null, 2), { mode: 0o600 });
-  fs.renameSync(temporary, USER_FILE);
+const NAME_ANIMALS = [
+  "แมวน้อย", "กระต่าย", "นกฮูก", "จิ้งจอก", "หมีน้อย", "ลูกเจี๊ยบ", "เต่าทอง", "แพนด้า",
+  "กบน้อย", "ปลาหมึก", "ช้างน้อย", "หนูน้อย", "ลูกหมา", "ม้าลาย", "เพนกวิน", "ปลาโลมา"
+];
+const NAME_TRAITS = [
+  "ขี้เซา", "ใจดี", "ซุกซน", "ขี้อาย", "ร่าเริง", "ใจเย็น", "ขี้สงสัย", "เจ้าเล่ห์",
+  "เงียบขรึม", "หัวไว", "ขี้เล่น", "ใจกล้า", "อารมณ์ดี", "ขี้หลง", "หิวโซ", "นักฝัน"
+];
+
+function pick(list) {
+  return list[crypto.randomInt(list.length)];
 }
 
-function getUser(id) {
-  return users.find(u => u.id === id);
+function cleanName(value) {
+  const name = String(value ?? "").trim().replace(/\s+/g, " ");
+  return /^[\p{L}\p{M}\p{N}_ -]{3,24}$/u.test(name) ? name : null;
 }
 
-function publicUser(user) {
+function nameTaken(name, exceptId) {
+  const key = name.toLocaleLowerCase();
+  for (const user of users.values()) {
+    if (user.id !== exceptId && user.nameKey === key) return true;
+  }
+  return false;
+}
+
+function randomName() {
+  for (let i = 0; i < 30; i++) {
+    const name = pick(NAME_ANIMALS) + pick(NAME_TRAITS);
+    if (!nameTaken(name)) return name;
+  }
+  return pick(NAME_ANIMALS) + pick(NAME_TRAITS) + crypto.randomInt(10, 1000);
+}
+
+function makeUser(id, name, avatar, color) {
   return {
-    id: user.id,
-    name: user.name,
-    avatar: user.avatar,
-    color: user.color
+    id,
+    name,
+    nameKey: name.toLocaleLowerCase(),
+    avatar: AVATARS.includes(avatar) ? avatar : pick(AVATARS),
+    color: COLORS.includes(color) ? color : pick(COLORS),
+    lastSeen: Date.now()
   };
 }
 
-function cookieToken(raw = "") {
-  const item = raw.split(";").map(v => v.trim()).find(v => v.startsWith("wwsid="));
-  return item ? item.slice(6) : "";
+function getUser(id) {
+  return users.get(id) || { id, name: "ผู้เล่น", avatar: AVATARS[0], color: COLORS[0] };
 }
 
-function getSession(token) {
-  const session = sessions.get(token);
-  if (!session) return null;
-  if (session.expires < Date.now()) {
-    sessions.delete(token);
-    return null;
-  }
-  return session;
+function publicUser(user) {
+  return { id: user.id, name: user.name, avatar: user.avatar, color: user.color };
 }
 
-function issueSession(res, userId) {
-  const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, {
-    userId,
-    expires: Date.now() + 7 * 24 * 60 * 60 * 1000
-  });
-  res.setHeader(
-    "Set-Cookie",
-    `wwsid=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800` +
-      (PROD ? "; Secure" : "")
-  );
+function card(id) {
+  const user = getUser(id);
+  return { name: user.name, avatar: user.avatar, color: user.color };
 }
 
-function requireAuth(req, res, next) {
-  const token = cookieToken(req.headers.cookie);
-  const session = getSession(token);
-  if (!session) return res.status(401).json({ error: "กรุณาล็อกอิน" });
-  req.userId = session.userId;
-  req.token = token;
-  next();
-}
-
-function limitLogin(req, res, next) {
-  const key = req.ip;
-  const now = Date.now();
-  let bucket = loginBuckets.get(key);
-
-  if (!bucket || bucket.until < now) {
-    bucket = { count: 0, until: now + 60_000 };
-    loginBuckets.set(key, bucket);
-  }
-
-  if (++bucket.count > 20) {
-    return res.status(429).json({ error: "ลองบ่อยเกินไป กรุณารอสักครู่" });
-  }
-
-  next();
-}
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, bucket] of loginBuckets) {
-    if (bucket.until < now) loginBuckets.delete(key);
-  }
-  for (const [token, session] of sessions) {
-    if (session.expires < now) sessions.delete(token);
-  }
-}, 60_000).unref();
-
-app.post("/api/register", limitLogin, async (req, res) => {
-  try {
-    const name = String(req.body.name || "").trim();
-    const password = String(req.body.password || "");
-    const nameKey = name.toLocaleLowerCase();
-
-    if (!/^[\p{L}\p{M}\p{N}_ -]{3,24}$/u.test(name)) {
-      return res.status(400).json({
-        error: "ชื่อยาว 3–24 ตัว ใช้ตัวอักษร ตัวเลข ช่องว่าง _ หรือ -"
-      });
-    }
-
-    if (password.length < 8 || Buffer.byteLength(password) > 72) {
-      return res.status(400).json({
-        error: "รหัสผ่านอย่างน้อย 8 ตัว และไม่เกิน 72 ไบต์"
-      });
-    }
-
-    if (users.some(u => u.nameKey === nameKey)) {
-      return res.status(409).json({ error: "ชื่อนี้ถูกใช้แล้ว" });
-    }
-
-    const hash = await bcrypt.hash(password, 12);
-
-    if (users.some(u => u.nameKey === nameKey)) {
-      return res.status(409).json({ error: "ชื่อนี้ถูกใช้แล้ว" });
-    }
-
-    const user = {
-      id: crypto.randomUUID(),
-      name,
-      nameKey,
-      hash,
-      avatar: AVATARS[0],
-      color: COLORS[0]
-    };
-
-    users.push(user);
-    try {
-      saveUsers();
-    } catch (error) {
-      users = users.filter(u => u.id !== user.id);
-      throw error;
-    }
-
-    issueSession(res, user.id);
-    res.json({ user: publicUser(user) });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "ไม่สามารถสมัครสมาชิกได้" });
-  }
-});
-
-app.post("/api/login", limitLogin, async (req, res) => {
-  try {
-    const nameKey = String(req.body.name || "").trim().toLocaleLowerCase();
-    const password = String(req.body.password || "");
-    const user = users.find(u => u.nameKey === nameKey);
-
-    if (!user || !(await bcrypt.compare(password, user.hash))) {
-      return res.status(401).json({ error: "ชื่อหรือรหัสผ่านไม่ถูกต้อง" });
-    }
-
-    issueSession(res, user.id);
-    res.json({ user: publicUser(user) });
-  } catch {
-    res.status(500).json({ error: "ไม่สามารถล็อกอินได้" });
-  }
-});
-
-app.get("/api/me", requireAuth, (req, res) => {
-  res.json({ user: publicUser(getUser(req.userId)) });
-});
-
-app.post("/api/logout", requireAuth, (req, res) => {
-  sessions.delete(req.token);
+// ส่งแจ้งเตือนกลางหน้าจอให้ทุกคนในห้อง
+function announce(room, payload) {
+  const data = { id: crypto.randomUUID(), ...payload };
   for (const socket of io.sockets.sockets.values()) {
-    if (socket.data.token === req.token) socket.disconnect(true);
+    if (userRoom.get(socket.data.userId) === room.id) socket.emit("announce", data);
   }
-  res.setHeader(
-    "Set-Cookie",
-    "wwsid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0" + (PROD ? "; Secure" : "")
-  );
-  res.json({ ok: true });
-});
+}
+
+// รวมคนที่เพิ่งออกจากเกม (รวมคู่รักที่ตามไปด้วย) เป็นแจ้งเตือนเดียว
+function announceDeaths(room, title, opts = {}) {
+  const deaths = room.pendingDeaths || [];
+  room.pendingDeaths = [];
+  if (!deaths.length) return;
+  const plain = new Set(["เหตุการณ์ในยามค่ำคืน", "มติของหมู่บ้าน"]);
+  announce(room, {
+    kind: opts.kind || "death",
+    title,
+    text: opts.text || "",
+    players: deaths.map(d => ({
+      ...card(d.id),
+      roleName: ROLE_NAMES[room.players.find(p => p.id === d.id)?.role] || "",
+      note: plain.has(d.reason) ? "" : d.reason
+    }))
+  });
+}
+
+function canActTonight(room, player) {
+  if (!player.alive) return false;
+  if (isWolf(player)) return true;
+  switch (player.role) {
+    case "doctor":
+    case "seer":
+      return true;
+    case "knight":
+      return !player.knightUsed;
+    case "police":
+      return !player.policeUsed;
+    case "priest":
+      return !player.priestUsed && room.players.some(p => !p.alive && !p.left);
+    case "cupid":
+      return room.round === 1 && alivePlayers(room).length >= 2;
+    default:
+      return false;
+  }
+}
+
+// ทุกคนที่ต้องตัดสินใจ (ออนไลน์และยังอยู่) เลือกแล้ว → เร่งจบช่วงทันที
+function voteComplete(room) {
+  const need = alivePlayers(room).filter(p => isOnline(p.id));
+  return need.length > 0 && need.every(p => Object.hasOwn(room.votes, p.id));
+}
+
+function nightComplete(room) {
+  const need = alivePlayers(room).filter(p => isOnline(p.id) && canActTonight(room, p));
+  return need.length > 0 && need.every(p => Object.hasOwn(room.actions, p.id));
+}
+
+function advance(room, fn) {
+  try {
+    fn(room);
+  } catch (error) {
+    console.error("Game error:", error);
+    finish(room, "เกมหยุดเนื่องจากข้อผิดพลาดของระบบ");
+  }
+}
+
+function tryAdvance(room) {
+  if (room.phase === "vote" && voteComplete(room)) {
+    advance(room, resolveVote);
+    return true;
+  }
+  if (room.phase === "night" && nightComplete(room)) {
+    advance(room, resolveNight);
+    return true;
+  }
+  return false;
+}
+
+function extraTallies(room, me) {
+  if (room.phase === "vote") {
+    const tally = {};
+    let skipCount = 0;
+    let done = 0;
+    for (const p of alivePlayers(room)) {
+      const t = room.votes[p.id];
+      if (t === undefined) continue;
+      done++;
+      if (t === "skip") {
+        skipCount++;
+        continue;
+      }
+      if (!room.players.some(x => x.id === t && x.alive)) continue;
+      tally[t] = (tally[t] || 0) + (p.role === "sheriff" ? 2 : 1);
+    }
+    return { tally, skipCount, progress: { done, total: alivePlayers(room).length } };
+  }
+  if (room.phase === "night" && me.alive && hasWolfChat(me)) {
+    const tally = {};
+    for (const p of alivePlayers(room)) {
+      if (!hasWolfChat(p)) continue;
+      const t = room.actions[p.id];
+      if (typeof t !== "string" || t === "skip") continue;
+      tally[t] = (tally[t] || 0) + nightVoteWeight(p);
+    }
+    return { tally, skipCount: 0, progress: null };
+  }
+  return { tally: null, skipCount: 0, progress: null };
+}
 
 function shuffle(items) {
   const result = [...items];
@@ -362,10 +353,7 @@ function alivePlayers(room) {
 }
 
 function isOnline(id) {
-  for (const socket of io.sockets.sockets.values()) {
-    if (socket.data.userId === id) return true;
-  }
-  return false;
+  return (online.get(id) || 0) > 0;
 }
 
 function message(room, channel, text, sender = null) {
@@ -428,6 +416,7 @@ function snapshot(room, userId) {
       const user = getUser(player.id);
       const showRole =
         room.phase === "ended" ||
+        !player.alive ||
         player.id === userId ||
         (hasWolfChat(me) && isWolf(player));
 
@@ -460,9 +449,10 @@ function snapshot(room, userId) {
       knightUsed: me.knightUsed,
       policeUsed: me.policeUsed,
       priestUsed: me.priestUsed,
-      acted: Object.hasOwn(room.actions, me.id),
-      voted: Object.hasOwn(room.votes, me.id)
+      choice: room.phase === "night" ? (room.actions[me.id] ?? null) : null,
+      vote: room.phase === "vote" ? (room.votes[me.id] ?? null) : null
     },
+    ...extraTallies(room, me),
     readChannels: reads,
     writeChannels: writableChannels(room, me),
     messages: room.messages.filter(m => reads.includes(m.channel))
@@ -591,10 +581,12 @@ function leaveRoom(userId) {
     if (room.hostId === userId) {
       room.hostId = (present.find(p => isOnline(p.id)) || present[0]).id;
     }
-    if (player.alive) eliminate(room, player, "ผู้เล่นออกจากเกมกลางคัน");
-    else message(room, "public", `${name} ออกจากห้อง`);
+    if (player.alive) {
+      eliminate(room, player, "ผู้เล่นออกจากเกมกลางคัน");
+      announceDeaths(room, "มีผู้เล่นออกจากเกม");
+    } else message(room, "public", `${name} ออกจากห้อง`);
     if (checkWin(room)) return;
-    sync(room);
+    if (!tryAdvance(room)) sync(room);
     return;
   }
 
@@ -612,38 +604,40 @@ function leaveRoom(userId) {
   broadcastLobby();
 }
 
-const CLUE_WORDS = [
-  ["ระฆัง", "สิ่งที่ส่งเสียงเมื่อถูกสั่น"],
-  ["กระจก", "สิ่งที่สะท้อนภาพ"],
-  ["เทียน", "สิ่งที่ให้แสงและค่อย ๆ สั้นลง"],
-  ["กุญแจ", "สิ่งที่ใช้เปิดสิ่งที่ปิดล็อก"],
-  ["หนังสือ", "สิ่งที่เก็บเรื่องราวไว้เป็นหน้า"],
-  ["นาฬิกา", "สิ่งที่บอกการเคลื่อนผ่านของเวลา"],
-  ["ร่ม", "สิ่งที่กางเพื่อบังฝน"],
-  ["หน้ากาก", "สิ่งที่ใช้ปิดบังใบหน้า"],
-  ["ดอกกุหลาบ", "ดอกไม้ที่มักมีหนาม"],
-  ["จดหมาย", "ข้อความที่ส่งถึงใครบางคน"],
-  ["ขนนก", "สิ่งเบาบางที่ปกคลุมตัวนก"],
-  ["เข็มทิศ", "สิ่งที่ช่วยบอกทิศทาง"],
-  ["กล่องดนตรี", "ภาชนะเล็กที่บรรเลงเสียงเพลง"],
-  ["ลูกแก้ว", "วัตถุกลมเล็กที่มักโปร่งใส"],
-  ["ผ้าพันคอ", "สิ่งที่ใช้พันเพื่อให้คออบอุ่น"],
-  ["รองเท้า", "สิ่งที่สวมก่อนออกเดินทาง"]
-];
+const CLUE_WORDS = [...new Set([
+  "ระฆัง", "กระจก", "เทียน", "กุญแจ", "หนังสือ", "นาฬิกา", "ร่ม", "หน้ากาก", "ดอกกุหลาบ", "จดหมาย",
+  "ขนนก", "เข็มทิศ", "กล่องดนตรี", "ลูกแก้ว", "ผ้าพันคอ", "รองเท้า",
+  "แว่นตา", "หมวก", "กรรไกร", "ค้อน", "บันได", "ตะเกียง", "โคมไฟ", "ผ้าห่ม", "หมอน", "ตุ๊กตา",
+  "ลูกโป่ง", "ว่าว", "จักรยาน", "เรือ", "รถไฟ", "เครื่องบิน", "กล้องถ่ายรูป", "โทรศัพท์", "โทรทัศน์",
+  "วิทยุ", "พัดลม", "ตู้เย็น", "กระเป๋าเดินทาง", "แผนที่", "ดาบ", "โล่", "มงกุฎ", "แหวน", "สร้อยคอ",
+  "ส้มตำ", "ต้มยำกุ้ง", "ข้าวผัด", "ผัดไทย", "ไอศกรีม", "ช็อกโกแลต", "ข้าวเหนียวมะม่วง", "ชานมไข่มุก",
+  "กาแฟ", "น้ำแข็งไส", "ไข่เจียว", "หมูปิ้ง", "ก๋วยเตี๋ยว", "ข้าวมันไก่", "ซาลาเปา", "ขนมปัง", "พิซซ่า",
+  "แฮมเบอร์เกอร์", "ทุเรียน", "มะม่วง", "แตงโม", "กล้วย", "สับปะรด", "เงาะ", "ลำไย", "ป๊อปคอร์น",
+  "โรงเรียน", "โรงพยาบาล", "วัด", "ตลาด", "สวนสาธารณะ", "ห้องสมุด", "ชายหาด", "ภูเขา", "น้ำตก",
+  "ทะเลทราย", "ถ้ำ", "สนามบิน", "สถานีรถไฟ", "ปราสาท", "ประภาคาร", "สะพาน", "ตลาดน้ำ", "สวนสัตว์",
+  "โรงหนัง", "ฟาร์ม", "ร้านสะดวกซื้อ", "ลิฟต์",
+  "ดวงจันทร์", "ดวงอาทิตย์", "ดาวตก", "สายรุ้ง", "ฟ้าผ่า", "พายุ", "หมอก", "หิมะ", "ภูเขาไฟ",
+  "ทะเลสาบ", "ป่าไผ่", "ทุ่งนา", "ดอกทานตะวัน", "ดอกบัว", "เห็ด", "กองไฟ", "เกาะร้าง",
+  "ช้าง", "ปลาโลมา", "นกแก้ว", "ผีเสื้อ", "เต่า", "ม้า", "ลิง", "แมว", "สุนัข", "งู", "จระเข้",
+  "เพนกวิน", "หมีแพนด้า", "ค้างคาว", "แมงมุม", "ปลาการ์ตูน",
+  "ครู", "นักดับเพลิง", "พ่อครัว", "ช่างตัดผม", "นักบิน", "ชาวนา", "นักร้อง", "จิตรกร", "นักมายากล",
+  "งานวัด", "ดอกไม้ไฟ", "วันเกิด", "งานแต่งงาน", "ปิกนิก", "ตั้งแคมป์", "ตกปลา", "ว่ายน้ำ",
+  "เกมกระดาน", "ไพ่", "หมากรุก", "กีตาร์", "เปียโน", "กลอง", "ขลุ่ย", "ระนาด", "ภาพวาด", "ภาพยนตร์"
+])];
 
-// ทุกคนที่ไม่ใช่หมาป่าได้ "คำเดียวกัน" ส่วนหมาป่าได้แค่คำใบ้ทางอ้อมของคำนั้น
+// ชาวบ้านทุกคนได้ "คำเดียวกัน" ส่วนหมาป่าไม่ได้รับคำใด ๆ
 function makeClues(room) {
   if (!room.wordPool?.length) room.wordPool = shuffle(CLUE_WORDS);
-  const [word, hint] = room.wordPool.pop();
+  const word = room.wordPool.pop();
 
   room.clueHistory.push({
     round: room.round,
-    sentence: `คำของฝั่งชาวบ้านคือ "${word}" · คำใบ้ที่หมาป่าได้รับ: ${hint}`
+    sentence: `คำของฝั่งชาวบ้านคือ "${word}" (หมาป่าไม่ได้รับคำ)`
   });
 
   for (const p of alivePlayers(room)) {
     p.clue = isWolf(p)
-      ? { round: room.round, type: "คำใบ้ทางอ้อม", text: hint }
+      ? null
       : { round: room.round, type: "คำของฝั่งชาวบ้าน (ทุกคนได้คำเดียวกัน)", text: word };
   }
 }
@@ -671,6 +665,7 @@ function finish(room, winner) {
   room.endsAt = null;
   room.winner = winner;
   message(room, "public", `จบเกม — ${winner}`);
+  announce(room, { kind: "end", title: "จบเกม", text: winner, players: [] });
   sync(room);
 }
 
@@ -706,7 +701,8 @@ function checkWin(room) {
 function eliminate(room, player, reason, killerIds = []) {
   if (!player?.alive) return;
   player.alive = false;
-  message(room, "public", `${getUser(player.id).name} ออกจากเกม — ${reason}`);
+  (room.pendingDeaths ||= []).push({ id: player.id, reason });
+  message(room, "public", `${getUser(player.id).name} ออกจากเกม — ${reason} (บทบาท: ${ROLE_NAMES[player.role]})`);
 
   if (player.bondId) {
     const partner = room.players.find(p => p.id === player.bondId);
@@ -737,6 +733,12 @@ function beginDay(room) {
       ? "เช้าวันที่ 1 — วันแรกยังไม่มีการโหวต แลกเปลี่ยนเบาะแสกันก่อน"
       : `เช้าวันที่ ${room.round} — สนทนาและแลกเปลี่ยนเบาะแส`
   );
+  announce(room, {
+    kind: "phase",
+    title: room.round === 1 ? "เกมเริ่มแล้ว · เช้าวันที่ 1" : `เช้าวันที่ ${room.round}`,
+    text: room.round === 1 ? "วันแรกยังไม่มีการโหวต แลกเปลี่ยนคำใบ้กันก่อน" : "สนทนาและหาตัวหมาป่า",
+    players: []
+  });
   setPhase(room, "day", room.settings.daySeconds);
   sync(room);
 }
@@ -745,6 +747,7 @@ function beginNight(room) {
   room.actions = {};
   room.votes = {};
   message(room, "public", `เริ่มคืนที่ ${room.round}`);
+  announce(room, { kind: "phase", title: `คืนที่ ${room.round}`, text: "หมู่บ้านหลับใหล ใครมีความสามารถให้เลือกเป้าหมาย", players: [] });
   setPhase(room, "night", room.settings.nightSeconds);
   sync(room);
 }
@@ -782,6 +785,8 @@ function resolveNight(room) {
     if (!target) continue;
     target.alive = true;
     target.clue = null;
+    priest.priestUsed = true;
+    announce(room, { kind: "revive", title: "มีผู้กลับเข้าสู่เกม", text: "ถูกคืนชีพ", players: [card(target.id)] });
     message(room, "public", `${getUser(target.id).name} กลับเข้าสู่เกมจากการคืนชีพ`);
     personal(target, "คุณถูกคืนชีพ บทบาทและจำนวนครั้งของความสามารถยังคงเดิม");
     personal(priest, `คืนชีพ ${getUser(target.id).name} สำเร็จ`);
@@ -800,7 +805,7 @@ function resolveNight(room) {
   const doctorProtected = new Set();
   for (const doctor of actors.filter(p => p.role === "doctor")) {
     const targetId = room.actions[doctor.id];
-    if (typeof targetId === "string") {
+    if (typeof targetId === "string" && targetId !== "skip") {
       doctorProtected.add(targetId);
       doctor.lastHeal = targetId;
     } else {
@@ -812,7 +817,7 @@ function resolveNight(room) {
   const scores = new Map();
   for (const wolf of wolfActors) {
     const targetId = room.actions[wolf.id];
-    if (typeof targetId !== "string") continue;
+    if (typeof targetId !== "string" || targetId === "skip") continue;
     scores.set(targetId, (scores.get(targetId) || 0) + nightVoteWeight(wolf));
   }
 
@@ -836,6 +841,7 @@ function resolveNight(room) {
     const targetId = room.actions[police.id];
     const target = room.players.find(p => p.id === targetId);
     if (!target) continue;
+    police.policeUsed = true;
     addAttack(target.id, [police.id]);
     if (!isWolf(target)) policePenalties.push(police);
   }
@@ -868,7 +874,12 @@ function resolveNight(room) {
   }
 
   const newlyOut = room.players.filter(p => aliveBefore.has(p.id) && !p.alive);
-  if (!newlyOut.length) message(room, "public", "คืนนี้ไม่มีผู้เล่นออกจากเกม");
+  if (!newlyOut.length) {
+    message(room, "public", "คืนนี้ไม่มีผู้เล่นออกจากเกม");
+    announce(room, { kind: "safe", title: "คืนนี้ปลอดภัย", text: "ไม่มีผู้เล่นออกจากเกม", players: [] });
+  } else {
+    announceDeaths(room, "มีผู้ออกจากเกมในคืนนี้");
+  }
 
   if (checkWin(room)) return;
 
@@ -879,6 +890,7 @@ function resolveNight(room) {
 function beginVote(room) {
   room.votes = {};
   message(room, "public", "เริ่มลงคะแนน เลือกผู้ต้องสงสัยหรืองดออกเสียง");
+  announce(room, { kind: "phase", title: "ถึงเวลาลงคะแนน", text: "แตะการ์ดผู้เล่นเพื่อโหวต", players: [] });
   setPhase(room, "vote", room.settings.voteSeconds);
   sync(room);
 }
@@ -903,13 +915,16 @@ function resolveVote(room) {
     const target = room.players.find(p => p.id === leaders[0]);
     const killerIds = voters.filter(p => room.votes[p.id] === target.id).map(p => p.id);
     eliminate(room, target, "มติของหมู่บ้าน", killerIds);
+    announceDeaths(room, "ถูกโหวตออก", { kind: "vote", text: `ได้ ${scores.get(target.id)} คะแนน` });
 
     if (target.role === "jester") {
       finish(room, `ตัวตลกชนะ — ${getUser(target.id).name} ถูกโหวตออกสำเร็จ`);
       return;
     }
   } else {
-    message(room, "public", leaders.length ? "คะแนนเสมอ ไม่มีใครออกจากเกม" : "ไม่มีใครถูกเลือก");
+    const text = leaders.length ? "คะแนนเสมอ ไม่มีใครออกจากเกม" : "ไม่มีใครถูกเลือก";
+    message(room, "public", text);
+    announce(room, { kind: "tie", title: leaders.length ? "คะแนนเสมอ" : "ไม่มีใครถูกโหวต", text, players: [] });
   }
 
   if (!checkWin(room)) beginNight(room);
@@ -926,17 +941,26 @@ io.use((socket, next) => {
     }
   }
 
-  const token = cookieToken(socket.handshake.headers.cookie);
-  const session = getSession(token);
-  if (!session) return next(new Error("กรุณาล็อกอิน"));
+  const auth = socket.handshake.auth || {};
+  const token = String(auth.token || "");
+  if (!/^[A-Za-z0-9_-]{24,64}$/.test(token)) return next(new Error("ข้อมูลผู้เล่นไม่ถูกต้อง"));
 
-  socket.data.userId = session.userId;
-  socket.data.token = token;
+  // token เป็นความลับของเครื่องผู้เล่น คนอื่นเห็นแค่ id ที่แฮชแล้ว
+  const id = "u" + crypto.createHash("sha256").update(token).digest("hex").slice(0, 16);
+  if (!users.has(id)) {
+    if (users.size >= 5000) return next(new Error("เซิร์ฟเวอร์เต็ม กรุณาลองใหม่ภายหลัง"));
+    const wanted = cleanName(auth.name);
+    users.set(id, makeUser(id, wanted && !nameTaken(wanted) ? wanted : randomName(), auth.avatar, auth.color));
+  }
+
+  socket.data.userId = id;
   next();
 });
 
 io.on("connection", socket => {
   const userId = socket.data.userId;
+  online.set(userId, (online.get(userId) || 0) + 1);
+  socket.emit("me", publicUser(getUser(userId)));
   socket.emit("rooms", publicRooms());
 
   const current = rooms.get(userRoom.get(userId));
@@ -947,7 +971,6 @@ io.on("connection", socket => {
     socket.on(event, (data, ack) => {
       if (typeof ack !== "function") ack = () => {};
       try {
-        if (!getSession(socket.data.token)) throw new Error("เซสชันหมดอายุ กรุณาล็อกอินใหม่");
         const now = Date.now();
         const key = `last:${event}`;
         if (now - (socket.data[key] || 0) < 100) throw new Error("กรุณารอสักครู่ก่อนทำซ้ำ");
@@ -965,17 +988,27 @@ io.on("connection", socket => {
       throw new Error("อวตารไม่ถูกต้อง");
     }
     const user = getUser(userId);
-    const old = { avatar: user.avatar, color: user.color };
     user.avatar = data.avatar;
     user.color = data.color;
-    try {
-      saveUsers();
-    } catch (error) {
-      Object.assign(user, old);
-      throw new Error("บันทึกอวตารไม่สำเร็จ");
-    }
     const room = rooms.get(userRoom.get(userId));
     if (room) broadcastRoom(room);
+    return { user: publicUser(user) };
+  });
+
+  on("rename", data => {
+    const room = rooms.get(userRoom.get(userId));
+    if (room && !["lobby", "ended"].includes(room.phase)) throw new Error("เปลี่ยนชื่อระหว่างเกมไม่ได้");
+    const user = getUser(userId);
+    const name = data.random ? randomName() : cleanName(data.name);
+    if (!name) throw new Error("ชื่อยาว 3–24 ตัว ใช้ตัวอักษร ตัวเลข ช่องว่าง _ หรือ -");
+    if (nameTaken(name, userId)) throw new Error("ชื่อนี้มีคนใช้อยู่แล้ว");
+    const oldName = user.name;
+    user.name = name;
+    user.nameKey = name.toLocaleLowerCase();
+    if (room) {
+      message(room, "public", `${oldName} เปลี่ยนชื่อเป็น ${name}`);
+      broadcastRoom(room);
+    }
     return { user: publicUser(user) };
   });
 
@@ -1002,6 +1035,7 @@ io.on("connection", socket => {
       actions: {},
       votes: {},
       clueHistory: [],
+      pendingDeaths: [],
       createdAt: Date.now()
     };
 
@@ -1080,6 +1114,7 @@ io.on("connection", socket => {
     room.winner = null;
     room.clueHistory = [];
     room.wordPool = null;
+    room.pendingDeaths = [];
     if (plan.trimmed) {
       message(room, "public", `บทบาทที่เลือกมากกว่าจำนวนผู้เล่น ระบบสุ่มใช้ ${plan.used} จาก ${plan.requested} บทบาท`);
     }
@@ -1130,10 +1165,18 @@ io.on("connection", socket => {
     if (room.phase !== "night" || !player.alive) {
       throw new Error("ใช้ความสามารถได้เฉพาะกลางคืนขณะยังอยู่ในเกม");
     }
-    if (Object.hasOwn(room.actions, userId)) throw new Error("คุณยืนยันการกระทำไปแล้ว");
+    if (player.role === "knight" && player.knightUsed) throw new Error("พลังอัศวินหมดแล้ว");
+    if (player.role === "police" && player.policeUsed) throw new Error("ตำรวจใช้ความสามารถไปแล้ว");
+    if (player.role === "priest" && player.priestUsed) throw new Error("คุณใช้การคืนชีพไปแล้ว");
+    if (!canActTonight(room, player)) throw new Error("คืนนี้คุณไม่มีความสามารถที่ใช้ได้");
 
-    if (player.role === "cupid") {
-      if (room.round !== 1) throw new Error("ผูกคู่รักได้เฉพาะคืนแรก");
+    // value: undefined = ยกเลิก, "skip" = ข้าม, id หรือ [id, id] = เลือกเป้าหมาย
+    let value;
+    if (data.clear) {
+      value = undefined;
+    } else if (data.skip || data.target === "skip") {
+      value = "skip";
+    } else if (player.role === "cupid") {
       const ids = data.targets;
       if (
         !Array.isArray(ids) ||
@@ -1143,57 +1186,46 @@ io.on("connection", socket => {
       ) {
         throw new Error("เลือกผู้เล่นที่ยังอยู่ในเกมสองคนที่ต่างกัน");
       }
-      room.actions[userId] = ids;
-      broadcastRoom(room);
-      return;
-    }
-
-    if (player.role === "priest") {
-      if (player.priestUsed) throw new Error("คุณใช้การคืนชีพไปแล้ว");
+      value = [ids[0], ids[1]];
+    } else if (player.role === "priest") {
       const target = room.players.find(p => p.id === data.target && !p.alive && !p.left);
       if (!target) throw new Error("ต้องเลือกผู้เล่นที่ออกจากเกมแล้ว");
-      room.actions[userId] = target.id;
-      player.priestUsed = true;
-      broadcastRoom(room);
-      return;
-    }
+      value = target.id;
+    } else {
+      const target = room.players.find(p => p.id === data.target && p.alive);
+      if (!target) throw new Error("เป้าหมายไม่ถูกต้อง");
 
-    const allowed = isWolf(player) || ["doctor", "seer", "knight", "police"].includes(player.role);
-    if (!allowed) throw new Error("บทบาทนี้ไม่มีความสามารถเลือกเป้าหมายในคืนนี้");
-
-    const target = room.players.find(p => p.id === data.target && p.alive);
-    if (!target) throw new Error("เป้าหมายไม่ถูกต้อง");
-
-    if (isWolf(player)) {
-      if (target.id === userId) throw new Error("เลือกตัวเองไม่ได้");
-      if (player.role !== "loneWolf" && isWolf(target)) {
-        throw new Error("เลือกหมาป่าด้วยกันไม่ได้");
+      if (isWolf(player)) {
+        if (target.id === userId) throw new Error("เลือกตัวเองไม่ได้");
+        if (player.role !== "loneWolf" && isWolf(target)) {
+          throw new Error("เลือกหมาป่าด้วยกันไม่ได้");
+        }
       }
+      if (["seer", "police"].includes(player.role) && target.id === userId) {
+        throw new Error("เลือกตัวเองไม่ได้");
+      }
+      if (player.role === "doctor" && target.id === player.lastHeal) {
+        throw new Error("หมอเลือกคนเดิมติดกันไม่ได้");
+      }
+      value = target.id;
     }
 
-    if (["seer", "police"].includes(player.role) && target.id === userId) {
-      throw new Error("เลือกตัวเองไม่ได้");
-    }
-    if (player.role === "doctor" && target.id === player.lastHeal) {
-      throw new Error("หมอเลือกคนเดิมติดกันไม่ได้");
-    }
-    if (player.role === "knight" && player.knightUsed) throw new Error("พลังอัศวินหมดแล้ว");
+    const before = JSON.stringify(room.actions[userId] ?? null);
+    if (value === undefined) delete room.actions[userId];
+    else room.actions[userId] = value;
 
-    if (player.role === "police") {
-      if (player.policeUsed) throw new Error("ตำรวจใช้ความสามารถไปแล้ว");
-      player.policeUsed = true;
+    if (JSON.stringify(value ?? null) !== before && isWolf(player) && hasWolfChat(player)) {
+      const name = getUser(userId).name;
+      const text =
+        value === undefined
+          ? `${name} ยกเลิกการเลือก`
+          : value === "skip"
+            ? `${name} ข้ามคืนนี้`
+            : `${name} เลือก ${getUser(value).name}` + (player.role === "alpha" ? " — น้ำหนัก 2 คะแนน" : "");
+      message(room, "wolves", text);
     }
 
-    room.actions[userId] = target.id;
-    if (isWolf(player)) {
-      message(
-        room,
-        "wolves",
-        `${getUser(userId).name} เลือก ${getUser(target.id).name}` +
-          (player.role === "alpha" ? " — น้ำหนัก 2 คะแนน" : "")
-      );
-    }
-    broadcastRoom(room);
+    if (!tryAdvance(room)) broadcastRoom(room);
   });
 
   on("vote", data => {
@@ -1201,13 +1233,17 @@ io.on("connection", socket => {
     const player = room.players.find(p => p.id === userId);
 
     if (room.phase !== "vote" || !player.alive) throw new Error("ยังลงคะแนนไม่ได้");
-    if (Object.hasOwn(room.votes, userId)) throw new Error("คุณลงคะแนนแล้ว");
-    if (data.target !== "skip" && !room.players.some(p => p.id === data.target && p.alive)) {
-      throw new Error("เป้าหมายไม่ถูกต้อง");
+
+    if (data.target === null || data.clear) {
+      delete room.votes[userId];
+    } else {
+      if (data.target !== "skip" && !room.players.some(p => p.id === data.target && p.alive)) {
+        throw new Error("เป้าหมายไม่ถูกต้อง");
+      }
+      room.votes[userId] = data.target;
     }
 
-    room.votes[userId] = data.target;
-    broadcastRoom(room);
+    if (!tryAdvance(room)) broadcastRoom(room);
   });
 
   on("chat", data => {
@@ -1228,6 +1264,11 @@ io.on("connection", socket => {
   });
 
   socket.on("disconnect", () => {
+    const left = (online.get(userId) || 1) - 1;
+    if (left > 0) online.set(userId, left);
+    else online.delete(userId);
+    const user = users.get(userId);
+    if (user) user.lastSeen = Date.now();
     const room = rooms.get(userRoom.get(userId));
     if (room) broadcastRoom(room);
   });
@@ -1248,6 +1289,15 @@ setInterval(() => {
     }
   }
   broadcastLobby();
+}, 60_000).unref();
+
+setInterval(() => {
+  const keep = new Set();
+  for (const room of rooms.values()) for (const p of room.players) keep.add(p.id);
+  const now = Date.now();
+  for (const [id, user] of users) {
+    if (!isOnline(id) && !keep.has(id) && now - user.lastSeen > 10 * 60 * 1000) users.delete(id);
+  }
 }, 60_000).unref();
 
 app.use(express.static(path.join(__dirname, "public")));
