@@ -10,7 +10,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
     "express": "^4.21.2",
     "socket.io": "^4.8.1"
   }
