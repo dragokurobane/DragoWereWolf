@@ -1292,9 +1292,6 @@ io.on("connection", socket => {
     room.clueHistory = [];
     room.wordPool = null;
     room.pendingDeaths = [];
-    if (plan.trimmed) {
-      message(room, "public", `บทบาทที่เลือกมากกว่าจำนวนผู้เล่น ระบบสุ่มใช้ ${plan.used} จาก ${plan.requested} บทบาท`);
-    }
     beginDay(room);
   });
 
