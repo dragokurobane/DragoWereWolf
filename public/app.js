@@ -39,7 +39,7 @@ const ROLE_NAMES = {
 };
 
 const CHANNEL_NAMES = {
-  public: "หมู่บ้าน",
+  public: "ทุกคน",
   wolves: "หมาป่า",
   lovers: "คู่รัก",
   dead: "ผู้ตาย"
@@ -94,16 +94,16 @@ async function api(path, data) {
     body: data === undefined ? undefined : JSON.stringify(data)
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "เกิดข้อผิดพลาด");
+  if (!response.ok) throw new Error(result.error || "มีบางอย่างผิดพลาด");
   return result;
 }
 
 function emit(event, data = {}) {
   return new Promise((resolve, reject) => {
-    if (!socket?.connected) return reject(new Error("ยังไม่ได้เชื่อมต่อเซิร์ฟเวอร์"));
+    if (!socket?.connected) return reject(new Error("ยังเชื่อมต่อไม่ได้"));
     socket.timeout(8000).emit(event, data, (error, result) => {
-      if (error) return reject(new Error("เซิร์ฟเวอร์ตอบกลับช้า กรุณาลองใหม่"));
-      if (!result?.ok) return reject(new Error(result?.error || "เกิดข้อผิดพลาด"));
+      if (error) return reject(new Error("เซิร์ฟเวอร์ช้า ลองอีกที"));
+      if (!result?.ok) return reject(new Error(result?.error || "มีบางอย่างผิดพลาด"));
       resolve(result);
     });
   });
@@ -120,7 +120,7 @@ async function attempt(task) {
 
 function renderAccount() {
   if (!me) {
-    $("#account").innerHTML = '<small>เกมจับพิรุธกับเพื่อน</small>';
+    $("#account").innerHTML = '<small>เกมหมาป่า</small>';
     return;
   }
   $("#account").innerHTML = `
@@ -130,7 +130,7 @@ function renderAccount() {
   `;
   $("#logout").onclick = () => attempt(async () => {
     if (room && !["lobby", "ended"].includes(room.phase)) {
-      if (!confirm("เกมยังดำเนินต่อแม้คุณออกจากระบบ ต้องการออกหรือไม่?")) return;
+      if (!confirm("เกมยังเล่นต่อแม้คุณออกจากระบบ จะออกไหม?")) return;
     }
     await api("logout", {});
     socket?.disconnect();
@@ -149,7 +149,7 @@ function connect() {
   socket.on("connect", () => { $("#connection").hidden = true; });
   socket.on("disconnect", () => {
     $("#connection").hidden = false;
-    $("#connection").textContent = "การเชื่อมต่อขาดหาย เกมยังดำเนินต่อ ระบบจะพยายามเชื่อมต่อใหม่";
+    $("#connection").textContent = "หลุดจากเซิร์ฟเวอร์ กำลังต่อใหม่ เกมยังเล่นอยู่";
   });
   socket.on("connect_error", error => {
     $("#connection").hidden = false;
@@ -186,7 +186,7 @@ function connect() {
 
 $("#toggleAuth").onclick = () => {
   registerMode = !registerMode;
-  $("#authTitle").textContent = registerMode ? "สร้างตัวตนของคุณ" : "เข้าสู่หมู่บ้าน";
+  $("#authTitle").textContent = registerMode ? "สมัครสมาชิก" : "เข้าสู่ระบบ";
   $("#authSubmit").textContent = registerMode ? "สมัครสมาชิก" : "ล็อกอิน";
   $("#toggleAuth").textContent = registerMode ? "มีบัญชีแล้ว? ล็อกอิน" : "ยังไม่มีบัญชี? สมัครสมาชิก";
   $("#authPassword").autocomplete = registerMode ? "new-password" : "current-password";
@@ -222,10 +222,10 @@ function renderRooms() {
           <span class="badge">${r.count} / ${r.capacity ?? "∞"} คน</span>
         </div>
         <p class="muted" style="margin:10px 0">ห้อง ${esc(r.id)} · หมาป่า ${r.wolfPercent}%</p>
-        <button data-join="${esc(r.id)}" ${r.capacity && r.count >= r.capacity ? "disabled" : ""}>เข้าร่วม</button>
+        <button data-join="${esc(r.id)}" ${r.capacity && r.count >= r.capacity ? "disabled" : ""}>เข้าห้อง</button>
       </div>
     `).join("")
-    : '<p class="muted">ยังไม่มีห้องสาธารณะ สร้างห้องแรกได้เลย</p>';
+    : '<p class="muted">ยังไม่มีห้องสาธารณะ ลองสร้างเองเลย</p>';
 
   $$("[data-join]").forEach(button => {
     button.onclick = () => attempt(() => emit("join", { id: button.dataset.join }));
@@ -289,7 +289,7 @@ $("#saveAvatar").onclick = () => attempt(async () => {
   const result = await emit("avatar", { avatar: selectedAvatar, color: selectedColor });
   me = result.user;
   renderAccount();
-  toast("บันทึกอวตารแล้ว");
+  toast("บันทึกแล้ว");
 });
 
 $("#copyCode").onclick = () => attempt(async () => {
@@ -303,7 +303,7 @@ $("#copyCode").onclick = () => attempt(async () => {
 
 $("#leaveRoom").onclick = () => attempt(async () => {
   if (room && !["lobby", "ended"].includes(room.phase)) {
-    if (!confirm("ออกจากเกมตอนนี้? คุณจะถูกนับว่าออกจากเกมและกลับเข้ามาเล่นรอบนี้ไม่ได้")) return;
+    if (!confirm("ออกจากเกมเลยไหม? ออกแล้วกลับมาเล่นรอบนี้ไม่ได้")) return;
   }
   await emit("leave");
 });
@@ -338,32 +338,32 @@ function renderLobby() {
   let warning = "";
 
   if (plan.trimmed) {
-    warning += `<p class="muted">เลือกบทบาทไว้ ${plan.requested} แต่ผู้เล่นมีไม่พอ ตอนเริ่มเกมระบบจะสุ่มใช้ ${plan.used} บทบาท</p>`;
+    warning += `<p class="muted">เลือกบทบาทไว้ ${plan.requested} แต่คนไม่พอ จะสุ่มใช้ ${plan.used} บทบาท</p>`;
   }
   const notReady = room.players.filter(p => !p.ready).length;
   const offline = room.players.filter(p => !p.online).length;
   const canStart = room.players.length >= 4 && !notReady && !offline;
   if (room.players.length < 4) {
-    warning += `<p class="bad">ต้องมีผู้เล่นอย่างน้อย 4 คนจึงจะเริ่มเกมได้</p>`;
+    warning += `<p class="bad">ต้องมีอย่างน้อย 4 คน</p>`;
   }
-  if (notReady) warning += `<p class="bad">ยังมีผู้เล่นที่ไม่พร้อม ${notReady} คน</p>`;
-  if (offline) warning += `<p class="bad">ยังมีผู้เล่นออฟไลน์ ${offline} คน</p>`;
+  if (notReady) warning += `<p class="bad">ยังไม่พร้อม ${notReady} คน</p>`;
+  if (offline) warning += `<p class="bad">ออฟไลน์ ${offline} คน</p>`;
 
   panel.innerHTML = `
-    <h3>เตรียมตัวก่อนเริ่มเกม</h3>
+    <h3>ก่อนเริ่มเกม</h3>
     <div class="row">
-      <span class="badge">ฝ่ายหมาป่า ${room.settings.wolfPercent}% → ${plan.wolves} คน</span>
-      <span class="badge">ชาวบ้านทั่วไป ${plan.villagers} คน</span>
+      <span class="badge">หมาป่า ${plan.wolves} คน (${room.settings.wolfPercent}%)</span>
+      <span class="badge">ชาวบ้านธรรมดา ${plan.villagers} คน</span>
       <span class="badge">ฝ่ายอิสระ ${plan.neutrals.length} คน</span>
     </div>
-    <small>บทบาทพิเศษที่เลือก: ${esc(specialNames || "ไม่มี")}</small>
-    <small>กลางคืน ${room.settings.nightSeconds}s · สนทนา ${room.settings.daySeconds}s · โหวต ${room.settings.voteSeconds}s</small>
+    <small>บทบาทพิเศษ: ${esc(specialNames || "ไม่มี")}</small>
+    <small>กลางคืน ${room.settings.nightSeconds}s · คุย ${room.settings.daySeconds}s · โหวต ${room.settings.voteSeconds}s</small>
     ${warning}
     <div class="row">
       <button id="readyButton" class="${room.me.ready ? "secondary" : "success"}">
-        ${room.me.ready ? "ยกเลิกพร้อม" : "ฉันพร้อมแล้ว"}
+        ${room.me.ready ? "ยกเลิกพร้อม" : "พร้อมแล้ว"}
       </button>
-      ${room.hostId === me.id ? `<button id="startButton" ${canStart ? "" : "disabled"}>เริ่มเกม</button>` : "<small>รอเจ้าของห้องเริ่มเกม</small>"}
+      ${room.hostId === me.id ? `<button id="startButton" ${canStart ? "" : "disabled"}>เริ่มเกม</button>` : "<small>รอเจ้าของห้องกดเริ่ม</small>"}
     </div>
   `;
 
@@ -374,20 +374,20 @@ function renderLobby() {
 }
 
 const ROLE_OPTIONS = [
-  ["sheriff", "นายอำเภอ — โหวต 2 เท่า"],
-  ["doctor", "หมอ — ปกป้องคน"],
-  ["seer", "ผู้หยั่งรู้ — ตรวจฝ่าย"],
-  ["cupid", "ผู้ผูกคู่รัก — เลือกคู่คืนแรก"],
-  ["knight", "อัศวิน — ปกป้องสำเร็จ 1 ครั้ง"],
-  ["police", "ตำรวจ — จัดการ 1 ครั้ง ผิดออกด้วย"],
-  ["priest", "นักบวช — คืนชีพ 1 ครั้ง"],
-  ["jester", "ตัวตลก — ถูกโหวตออกแล้วชนะ"],
-  ["pet", "สัตว์เลี้ยงและเจ้าของ — มาเป็นคู่"]
+  ["sheriff", "นายอำเภอ: โหวตนับ 2 คะแนน"],
+  ["doctor", "หมอ: ช่วยคนไม่ให้ตาย"],
+  ["seer", "ผู้หยั่งรู้: ตรวจว่าใครเป็นหมาป่า"],
+  ["cupid", "ผู้ผูกคู่รัก: เลือกคู่รักคืนแรก"],
+  ["knight", "อัศวิน: กันภัยให้คนอื่น 1 ครั้ง"],
+  ["police", "ตำรวจ: จัดการคน 1 ครั้ง ถ้าผิดตัวเองก็ออก"],
+  ["priest", "นักบวช: ชุบชีวิตคน 1 ครั้ง"],
+  ["jester", "ตัวตลก: ถูกโหวตออกคือชนะ"],
+  ["pet", "สัตว์เลี้ยงกับเจ้าของ: มาเป็นคู่"]
 ];
 const WOLF_OPTIONS = [
-  ["loneWolf", "หมาป่าเดียวดาย — ไม่รู้จักฝูง ไม่มีแชทหมาป่า"],
-  ["hybrid", "ลูกครึ่ง — ผู้หยั่งรู้ตรวจเป็นชาวบ้าน"],
-  ["alpha", "จ่าฝูง — คะแนนโหวตกลางคืน 2 เท่า"]
+  ["loneWolf", "หมาป่าเดียวดาย: ไม่รู้ว่าใครเป็นพวก และไม่มีแชทหมาป่า"],
+  ["hybrid", "ลูกครึ่ง: ผู้หยั่งรู้จะเห็นเป็นชาวบ้าน"],
+  ["alpha", "จ่าฝูง: โหวตกลางคืนนับ 2 คะแนน"]
 ];
 
 let settingsKey = "";
@@ -424,25 +424,25 @@ function renderSettings() {
           </label>
           <label>สถานะห้อง
             <select name="visibility">
-              <option value="private" ${s.visibility === "private" ? "selected" : ""}>ส่วนตัว — เข้าด้วยเลขห้อง</option>
-              <option value="public" ${s.visibility === "public" ? "selected" : ""}>สาธารณะ — แสดงในรายการ</option>
+              <option value="private" ${s.visibility === "private" ? "selected" : ""}>ส่วนตัว (ต้องมีเลขห้อง)</option>
+              <option value="public" ${s.visibility === "public" ? "selected" : ""}>สาธารณะ (ขึ้นในรายการ)</option>
             </select>
           </label>
-          <label>หมาป่าคิดเป็นกี่เปอร์เซ็นต์
+          <label>หมาป่ากี่ %
             <input name="wolfPercent" type="number" min="1" max="49" value="${s.wolfPercent}" required>
           </label>
         </div>
-        <h3>บทบาทพิเศษฝ่ายชาวบ้าน / อิสระ</h3>
+        <h3>บทบาทพิเศษ (ชาวบ้านและฝ่ายอิสระ)</h3>
         <div class="grid2">${ROLE_OPTIONS.map(check).join("")}</div>
         <h3>หมาป่าพิเศษ</h3>
         <div class="grid2">${WOLF_OPTIONS.map(check).join("")}</div>
         <div class="grid3">
-          <label>กลางคืน / วินาที<input name="nightSeconds" type="number" min="15" max="600" value="${s.nightSeconds}" required></label>
-          <label>สนทนา / วินาที<input name="daySeconds" type="number" min="15" max="600" value="${s.daySeconds}" required></label>
-          <label>ลงคะแนน / วินาที<input name="voteSeconds" type="number" min="15" max="600" value="${s.voteSeconds}" required></label>
+          <label>กลางคืน (วินาที)<input name="nightSeconds" type="number" min="15" max="600" value="${s.nightSeconds}" required></label>
+          <label>คุย (วินาที)<input name="daySeconds" type="number" min="15" max="600" value="${s.daySeconds}" required></label>
+          <label>โหวต (วินาที)<input name="voteSeconds" type="number" min="15" max="600" value="${s.voteSeconds}" required></label>
         </div>
-        <small>เลือกบทบาทมากกว่าจำนวนผู้เล่นได้ ตอนเริ่มเกมระบบจะสุ่มเลือกให้พอดี</small>
-        <button>บันทึกการตั้งค่า</button>
+        <small>เลือกเกินจำนวนคนได้ ตอนเริ่มจะสุ่มให้พอดี</small>
+        <button>บันทึก</button>
       </form>
     </details>
   `;
@@ -463,7 +463,7 @@ function renderSettings() {
         voteSeconds: Number(form.get("voteSeconds")),
         roles
       });
-      toast("บันทึกการตั้งค่าแล้ว");
+      toast("บันทึกแล้ว");
     });
   };
 }
@@ -477,10 +477,10 @@ function renderPlayers() {
         ${player.id === room.hostId ? '<span class="badge">เจ้าของห้อง</span>' : ""}
         ${player.id === me.id ? '<span class="badge">คุณ</span>' : ""}
         ${player.lover ? '<span class="badge">คู่รัก</span>' : ""}
-        ${player.bonded ? '<span class="badge">คู่สายสัมพันธ์</span>' : ""}
+        ${player.bonded ? '<span class="badge">คู่หู</span>' : ""}
       </div>
       <small class="${player.online ? "good" : "bad"}">${player.online ? "ออนไลน์" : "ออฟไลน์"}</small>
-      ${room.phase === "lobby" ? `<small class="${player.ready ? "good" : ""}">${player.ready ? "พร้อมแล้ว" : "ยังไม่พร้อม"}</small>` : `<small>${player.left ? "ออกจากห้องแล้ว" : player.alive ? "ยังอยู่ในเกม" : "ออกจากเกมแล้ว"}</small>`}
+      ${room.phase === "lobby" ? `<small class="${player.ready ? "good" : ""}">${player.ready ? "พร้อมแล้ว" : "ยังไม่พร้อม"}</small>` : `<small>${player.left ? "ออกจากห้องแล้ว" : player.alive ? "ยังอยู่" : "ออกแล้ว"}</small>`}
       ${player.roleName ? `<small>${esc(player.roleName)}</small>` : ""}
     </div>
   `).join("");
@@ -491,15 +491,15 @@ function renderRole() {
   panel.hidden = room.phase === "lobby";
   if (!panel.hidden) {
     panel.innerHTML = `
-      <div class="eyebrow">YOUR SECRET ROLE</div>
+      <div class="eyebrow">บทบาทของคุณ</div>
       <h2>${esc(room.me.roleName)}</h2>
       <p>${esc(room.me.description)}</p>
-      ${!room.me.alive ? '<span class="badge bad">คุณออกจากเกมแล้ว ใช้แชทผู้ตายได้</span>' : ""}
+      ${!room.me.alive ? '<span class="badge bad">คุณออกจากเกมแล้ว คุยในแชทผู้ตายได้</span>' : ""}
       ${room.me.clue ? `
         <div class="clue">
           <small>วันที่ ${room.me.clue.round} · ${esc(room.me.clue.type)}</small>
           <strong>${esc(room.me.clue.text)}</strong>
-          <small>เลือกเปิดเผยหรือเก็บไว้ เพื่อประกอบการสนทนา</small>
+          <small>จะบอกคนอื่นหรือเก็บไว้ก็ได้</small>
         </div>
       ` : ""}
     `;
@@ -551,8 +551,8 @@ function renderAction() {
     panel.innerHTML = `
       <h3>${esc(title)}</h3>
       <div class="stack">
-        ${targets.length ? `<select id="actionTarget">${targetOptions(targets)}</select>` : '<p class="muted">ยังไม่มีเป้าหมายที่เลือกได้</p>'}
-        <button id="submitAction" ${targets.length ? "" : "disabled"}>ยืนยัน — เปลี่ยนไม่ได้</button>
+        ${targets.length ? `<select id="actionTarget">${targetOptions(targets)}</select>` : '<p class="muted">ยังไม่มีให้เลือก</p>'}
+        <button id="submitAction" ${targets.length ? "" : "disabled"}>ยืนยัน (เปลี่ยนไม่ได้)</button>
         <small>${esc(help)}</small>
       </div>
     `;
@@ -562,8 +562,8 @@ function renderAction() {
   if (room.phase === "day") {
     panel.hidden = false;
     panel.innerHTML = `
-      <h3>ช่วงสนทนา</h3>
-      <p class="muted">${room.round === 1 ? "วันแรกยังไม่มีการโหวต — " : ""}แลกเปลี่ยนเบาะแส ตั้งคำถาม และสังเกตคำตอบ ระวังตัวตลกที่อาจพยายามทำให้ตัวเองถูกโหวต</p>
+      <h3>ช่วงคุยกัน</h3>
+      <p class="muted">${room.round === 1 ? "วันแรกยังโหวตไม่ได้ " : ""}คุยกัน ถามกัน แล้วดูว่าใครมีพิรุธ ระวังตัวตลกที่อยากโดนโหวต</p>
     `;
     return;
   }
@@ -571,17 +571,17 @@ function renderAction() {
   if (room.phase === "vote") {
     panel.hidden = false;
     if (room.me.voted) {
-      panel.innerHTML = '<h3 class="good">บันทึกคะแนนของคุณแล้ว</h3>';
+      panel.innerHTML = '<h3 class="good">โหวตแล้ว</h3>';
       return;
     }
     panel.innerHTML = `
-      <h3>ลงคะแนนผู้ต้องสงสัย</h3>
+      <h3>โหวตคนที่สงสัย</h3>
       <div class="stack">
         <select id="voteTarget">
-          <option value="skip">งดออกเสียง</option>
+          <option value="skip">ไม่โหวต</option>
           ${targetOptions(alive)}
         </select>
-        <button id="submitVote">ยืนยันคะแนน — เปลี่ยนไม่ได้</button>
+        <button id="submitVote">ยืนยัน (เปลี่ยนไม่ได้)</button>
       </div>
     `;
     $("#submitVote").onclick = () => attempt(() => emit("vote", { target: $("#voteTarget").value }));
@@ -590,7 +590,7 @@ function renderAction() {
 
   if (room.me.acted) {
     panel.hidden = false;
-    panel.innerHTML = '<h3 class="good">ยืนยันการกระทำแล้ว รอรุ่งเช้า</h3>';
+    panel.innerHTML = '<h3 class="good">เลือกแล้ว รอตอนเช้า</h3>';
     return;
   }
 
@@ -598,8 +598,8 @@ function renderAction() {
   if (role === "cupid" && room.round === 1) {
     panel.hidden = false;
     panel.innerHTML = `
-      <h3>ผูกคู่รักสองคน</h3>
-      <p class="muted">เลือกตัวเองได้ เมื่อคนหนึ่งออกจากเกม อีกคนจะออกตาม</p>
+      <h3>เลือกคู่รัก 2 คน</h3>
+      <p class="muted">เลือกตัวเองได้ ถ้าคนหนึ่งออก อีกคนจะออกตาม</p>
       <div class="stack">
         <select id="loverOne">${targetOptions(alive)}</select>
         <select id="loverTwo">${targetOptions(alive)}</select>
@@ -613,51 +613,51 @@ function renderAction() {
 
   if (role === "priest") {
     if (room.me.priestUsed) {
-      showWaiting("คุณใช้การคืนชีพไปแล้ว");
+      showWaiting("ใช้ชุบชีวิตไปแล้ว");
       return;
     }
-    showTargetAction("เลือกผู้เล่นที่ต้องการคืนชีพ", dead, "ใช้ได้ 1 ครั้ง หากยังไม่ต้องการใช้ ให้รอจนหมดเวลา");
+    showTargetAction("เลือกคนที่จะชุบชีวิต", dead, "ใช้ได้ครั้งเดียว ไม่อยากใช้ก็รอให้หมดเวลา");
     return;
   }
 
   if (role === "police") {
     if (room.me.policeUsed) {
-      showWaiting("คุณใช้ความสามารถตำรวจไปแล้ว");
+      showWaiting("ใช้พลังตำรวจไปแล้ว");
       return;
     }
-    showTargetAction("เลือกเป้าหมายของตำรวจ", alive.filter(p => p.id !== me.id), "ใช้ได้ 1 ครั้ง หากเป้าหมายไม่ใช่ฝ่ายหมาป่า คุณจะออกจากเกมด้วย");
+    showTargetAction("เลือกคนที่จะจัดการ", alive.filter(p => p.id !== me.id), "ใช้ได้ครั้งเดียว ถ้าไม่ใช่หมาป่า คุณจะออกจากเกมด้วย");
     return;
   }
 
   if (room.me.faction === "wolf") {
     const targets = role === "loneWolf" ? alive.filter(p => p.id !== me.id) : alive.filter(p => p.faction !== "wolf");
-    const help = role === "loneWolf" ? "คุณไม่รู้ว่าใครเป็นพวกเดียวกัน จึงอาจเลือกโดนฝ่ายหมาป่าได้" : role === "alpha" ? "คะแนนของคุณมีน้ำหนัก 2 คะแนนในตอนกลางคืน" : "ปรึกษาฝูงในแชทหมาป่าก่อนยืนยันเป้าหมาย";
-    showTargetAction("ลงคะแนนเลือกเป้าหมายของฝูง", targets, help);
+    const help = role === "loneWolf" ? "คุณไม่รู้ว่าใครเป็นพวก อาจเลือกโดนหมาป่าด้วยกันเอง" : role === "alpha" ? "โหวตของคุณนับ 2 คะแนน" : "คุยกับฝูงในแชทหมาป่าก่อนเลือก";
+    showTargetAction("เลือกคนที่จะกำจัด", targets, help);
     return;
   }
 
   if (role === "doctor") {
-    showTargetAction("เลือกผู้เล่นที่ต้องการปกป้อง", alive.filter(p => p.id !== room.me.lastHeal), "เลือกตัวเองได้ แต่เลือกคนเดิมติดกันไม่ได้");
+    showTargetAction("เลือกคนที่จะช่วย", alive.filter(p => p.id !== room.me.lastHeal), "เลือกตัวเองได้ แต่เลือกคนเดิมติดกันไม่ได้");
     return;
   }
   if (role === "seer") {
-    showTargetAction("เลือกผู้เล่นที่ต้องการตรวจ", alive.filter(p => p.id !== me.id), "ผลตรวจจะแสดงในบันทึกลับเมื่อจบคืน ลูกครึ่งจะให้ผลว่าไม่ใช่หมาป่า");
+    showTargetAction("เลือกคนที่จะตรวจ", alive.filter(p => p.id !== me.id), "ผลจะขึ้นในโน้ตลับตอนจบคืน (ลูกครึ่งจะแสดงว่าไม่ใช่หมาป่า)");
     return;
   }
   if (role === "knight") {
     if (room.me.knightUsed) {
-      showWaiting("คุณใช้พลังอัศวินสำเร็จไปแล้ว");
+      showWaiting("ใช้พลังอัศวินไปแล้ว");
       return;
     }
-    showTargetAction("เลือกผู้เล่นที่ต้องการปกป้อง", alive, "พลังจะหมดเมื่อปกป้องสำเร็จ");
+    showTargetAction("เลือกคนที่จะปกป้อง", alive, "ปกป้องสำเร็จแล้วพลังจะหมด");
     return;
   }
   if (role === "jester") {
-    showWaiting("เป้าหมายของคุณคือถูกโหวตออกโดยตรงในช่วงกลางวัน");
+    showWaiting("เป้าหมายคือให้คนโหวตคุณออกตอนกลางวัน");
     return;
   }
 
-  showWaiting("คืนนี้ไม่มีความสามารถที่ต้องเลือกเป้าหมาย");
+  showWaiting("คืนนี้ไม่มีอะไรให้ทำ รอตอนเช้า");
 }
 
 function renderResult() {
@@ -667,12 +667,12 @@ function renderResult() {
 
   panel.innerHTML = `
     <h2>${esc(room.winner)}</h2>
-    <p class="muted">เปิดเผยบทบาททั้งหมดแล้ว ดูได้จากรายชื่อผู้เล่น</p>
+    <p class="muted">เปิดบทบาททุกคนแล้ว ดูได้ในรายชื่อผู้เล่น</p>
     <details>
-      <summary>เฉลยประโยคเบาะแสแต่ละคืน</summary>
-      ${room.clueHistory.map(c => `<p style="margin-top:12px"><b>คืน ${c.round}</b><br>${esc(c.sentence)}</p>`).join("")}
+      <summary>ดูคำใบ้ของแต่ละวัน</summary>
+      ${room.clueHistory.map(c => `<p style="margin-top:12px"><b>วันที่ ${c.round}</b><br>${esc(c.sentence)}</p>`).join("")}
     </details>
-    ${room.hostId === me.id ? '<button id="resetGame" style="margin-top:16px">กลับห้องรอ / เล่นอีกครั้ง</button>' : '<p class="muted" style="margin-top:16px">รอเจ้าของห้องเปิดรอบใหม่</p>'}
+    ${room.hostId === me.id ? '<button id="resetGame" style="margin-top:16px">เล่นอีกรอบ</button>' : '<p class="muted" style="margin-top:16px">รอเจ้าของห้องเริ่มรอบใหม่</p>'}
   `;
 
   if ($("#resetGame")) {
@@ -701,8 +701,8 @@ function renderChat() {
   const canWrite = room.writeChannels.includes(channel);
   $("#chatInput").disabled = !canWrite;
   $("#chatSend").disabled = !canWrite;
-  $("#chatInput").placeholder = canWrite ? "พิมพ์ข้อความ..." : "ช่องนี้อ่านได้อย่างเดียวในขณะนี้";
-  $("#chatStatus").textContent = canWrite ? "ข้อความยาวได้ไม่เกิน 300 ตัวอักษร" : "สิทธิ์การส่งข้อความขึ้นอยู่กับช่วงเกมและสถานะผู้เล่น";
+  $("#chatInput").placeholder = canWrite ? "พิมพ์ข้อความ..." : "ตอนนี้พิมพ์ในช่องนี้ไม่ได้";
+  $("#chatStatus").textContent = canWrite ? "ไม่เกิน 300 ตัวอักษร" : "ช่วงนี้ส่งข้อความในช่องนี้ไม่ได้";
 
   const messages = room.messages.filter(m => m.channel === channel);
   const key = channel + ":" + messages.map(m => m.id).join(",");
@@ -718,7 +718,7 @@ function renderChat() {
       <time>${new Date(m.time).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</time>
       <p>${esc(m.text)}</p>
     </div>
-  `).join("") || '<small class="muted">ยังไม่มีข้อความในช่องนี้</small>';
+  `).join("") || '<small class="muted">ยังไม่มีข้อความ</small>';
 
   if (nearBottom || container.scrollTop === 0) {
     container.scrollTop = container.scrollHeight;
@@ -737,7 +737,7 @@ $("#chatForm").onsubmit = event => {
 
 function tick() {
   if (!room?.endsAt) {
-    $("#countdown").textContent = room?.phase === "lobby" ? "เตรียมพร้อม" : "—";
+    $("#countdown").textContent = room?.phase === "lobby" ? "รอเริ่ม" : "—";
     return;
   }
   const seconds = Math.max(0, Math.ceil((room.endsAt - Date.now()) / 1000));
