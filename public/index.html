@@ -227,6 +227,8 @@
       from { opacity: 0; transform: scale(.85) translateY(12px); }
       to { opacity: 1; transform: none; }
     }
+    .avatar { overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .kick-button { width: 100%; margin-top: 8px; padding: 6px 10px; font-size: 12px; }
     @media (max-width: 850px) {
       .game-layout { grid-template-columns: 1fr; }
@@ -267,10 +269,10 @@
         <div class="hero">
           <div class="eyebrow" id="homeName">ยินดีต้อนรับ</div>
           <h1>พร้อมเล่นหรือยัง?</h1>
-          <p>เข้าห้อง สร้างห้อง หรือเปลี่ยนรูปตัวเองก่อนเริ่มเกม</p>
+          <p>เข้าห้องหรือสร้างห้องใหม่ แตะชื่อของคุณมุมขวาบนเพื่อเปลี่ยนชื่อและรูป</p>
         </div>
 
-        <div class="grid3">
+        <div class="grid2">
           <button class="panel menu" data-page="browsePage">
             <span class="menu-icon">🌙</span>
             <b>เข้าห้อง</b>
@@ -280,11 +282,6 @@
             <span class="menu-icon">🏡</span>
             <b>สร้างห้อง</b>
             <small>ตั้งจำนวนคน บทบาท และเวลา</small>
-          </button>
-          <button class="panel menu" data-page="avatarPage">
-            <span class="menu-icon">🎭</span>
-            <b>ชื่อและรูปตัวเอง</b>
-            <small>เปลี่ยนชื่อ ตัวละคร และสี</small>
           </button>
         </div>
       </section>
@@ -319,7 +316,25 @@
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
-        <form id="createForm" class="panel stack">
+        <div id="modePicker" class="grid2">
+          <button type="button" class="panel menu" data-mode="normal">
+            <span class="menu-icon">🐺</span>
+            <b>ธรรมดา</b>
+            <small>ทุกคนรู้บทบาทของตัวเอง</small>
+          </button>
+          <button type="button" class="panel menu" data-mode="blind">
+            <span class="menu-icon">🎭</span>
+            <b>ไม่รู้จักตัวเอง</b>
+            <small>ทุกคนไม่รู้บทบาทของตัวเอง เลือกเป้าหมายได้ทุกคืน ถ้าบทบาทไม่มีผลก็ไม่เกิดอะไรขึ้น</small>
+          </button>
+        </div>
+
+        <form id="createForm" class="panel stack" hidden>
+          <div class="row between">
+            <span id="modeBadge" class="badge"></span>
+            <button id="changeMode" class="secondary" type="button">เปลี่ยนโหมด</button>
+          </div>
+
           <div class="grid2">
             <label>
               ชื่อห้อง
@@ -372,6 +387,11 @@
           </div>
           <small>ชื่อห้ามซ้ำกับคนอื่น และเปลี่ยนระหว่างเล่นเกมไม่ได้ ต้องกดบันทึกด้านล่างเพื่อให้มีผล</small>
           <div id="avatarPreview" class="avatar preview"></div>
+          <div class="row">
+            <button id="photoPick" class="secondary" type="button">📷 อัปโหลดรูป</button>
+            <button id="photoClear" class="secondary" type="button">ลบรูป</button>
+            <input id="photoInput" type="file" accept="image/*" hidden>
+          </div>
           <h3>ตัวละคร</h3>
           <div id="avatarChoices" class="avatar-choices"></div>
           <h3>สี</h3>
