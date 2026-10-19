@@ -35,8 +35,71 @@ const ROLE_NAMES = {
   priest: "นักบวช",
   jester: "ตัวตลก",
   pet: "สัตว์เลี้ยง",
-  owner: "เจ้าของ"
+  owner: "มาดาม",
+  psycho: "คนป่วยจิต",
+  spyWolf: "หมาป่าสายลับ",
+  cosplayer: "นักคอสเพลย์",
+  hunter: "นายพราน",
+  witchDoctor: "หมอผี",
+  thief: "โจร"
 };
+
+// หมวดบทบาทสำหรับหน้าสร้างห้องและตั้งค่าห้อง
+const ROLE_GROUPS = [
+  {
+    title: "ฝ่ายชาวบ้าน",
+    roles: [
+      ["sheriff", "นายอำเภอ: โหวตนับ 2 คะแนน"],
+      ["doctor", "หมอ: ช่วยคนไม่ให้ตาย"],
+      ["seer", "ผู้หยั่งรู้: ตรวจแล้วเห็นบทบาทของคนนั้นเลย (ลูกครึ่งเห็นเป็นชาวบ้าน)"],
+      ["cupid", "ผู้ผูกคู่รัก: เลือกคู่รักคืนแรก"],
+      ["knight", "อัศวิน: กันภัยให้คนอื่น 1 ครั้ง"],
+      ["police", "ตำรวจ: จัดการคน 1 ครั้ง ถ้าเลือกชาวบ้านตัวเองก็ออกด้วย (หมาป่าและฝ่ายเป็นกลางไม่เป็นไร)"],
+      ["priest", "นักบวช: ชุบชีวิตคน 1 ครั้ง"],
+      ["pet", "สัตว์เลี้ยงกับมาดาม: มาเป็นคู่"],
+      ["hunter", "นายพราน: เลือกคนทุกคืน ถ้าคนนั้นโดนหมาป่าฆ่า หมาป่าที่ลงมือตายแทน"],
+      ["thief", "โจร: ขโมยโหวตของคนอื่นแล้วเพิ่มให้ตัวเอง +1"],
+      ["cosplayer", "นักคอสเพลย์: หมาป่าเห็นเป็นพวก ผู้หยั่งรู้เห็นเป็นหมาป่า"]
+    ]
+  },
+  {
+    title: "ฝ่ายหมาป่าพิเศษ (แทนหมาป่าธรรมดา)",
+    roles: [
+      ["loneWolf", "หมาป่าเดียวดาย: ไม่รู้ว่าใครเป็นพวก และไม่มีแชทหมาป่า"],
+      ["hybrid", "ลูกครึ่ง: ผู้หยั่งรู้จะเห็นเป็นชาวบ้าน"],
+      ["alpha", "จ่าฝูง: โหวตกลางคืนนับ 2 คะแนน"],
+      ["spyWolf", "หมาป่าสายลับ: รู้คำของชาวบ้าน"]
+    ]
+  },
+  {
+    title: "ฝ่ายเป็นกลาง",
+    roles: [
+      ["jester", "ตัวตลก: ถูกโหวตออกคือชนะ"],
+      ["psycho", "คนป่วยจิต: ถูกฆ่าตอนกลางคืนคือชนะ"],
+      ["witchDoctor", "หมอผี: ถูกหมาป่าฆ่าแล้วไม่ตาย แต่กลายเป็นหมาป่า"]
+    ]
+  }
+];
+
+function roleCheckboxes(selected) {
+  return ROLE_GROUPS.map(group => `
+    <h3>${esc(group.title)}</h3>
+    <div class="grid2">
+      ${group.roles.map(([value, label]) => `
+        <label class="check-row">
+          <input type="checkbox" name="role" value="${value}" ${selected[value] ? "checked" : ""}> ${esc(label)}
+        </label>`).join("")}
+    </div>
+  `).join("");
+}
+
+function blindCheckbox(checked) {
+  return `
+    <label class="check-row">
+      <input type="checkbox" name="blind" ${checked ? "checked" : ""}>
+      โหมดไม่รู้บทบาท: ทุกคนไม่รู้บทบาทตัวเอง เลือกเป้าหมายได้ทุกคืน ถ้าบทบาทไม่มีผลก็ไม่เกิดอะไรขึ้น
+    </label>`;
+}
 
 const CHANNEL_NAMES = {
   public: "ทุกคน",
@@ -58,6 +121,8 @@ let selectedColor = COLORS[0];
 let toastTimer;
 let actionKey = "";
 let lastMessagesKey = "";
+let voteDraft = null;
+let voteDraftKey = "";
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -247,6 +312,7 @@ function connect() {
     renderRooms();
   });
   socket.on("announce", pushAnnounce);
+  socket.on("notice", text => toast(text));
   socket.on("state", data => {
     const changedRoom = room?.id !== data?.id;
     room = data;
@@ -316,9 +382,12 @@ $("#createForm").onsubmit = event => {
     nightSeconds: Number(form.get("nightSeconds")),
     daySeconds: Number(form.get("daySeconds")),
     voteSeconds: Number(form.get("voteSeconds")),
+    blind: form.get("blind") === "on",
     roles
   }));
 };
+
+$("#createRoles").innerHTML = roleCheckboxes({ doctor: true, seer: true }) + blindCheckbox(false);
 
 function renderAvatar() {
   $("#avatarPreview").textContent = selectedAvatar;
@@ -350,29 +419,25 @@ function renderAvatar() {
   });
 }
 
-$("#saveAvatar").onclick = () => attempt(async () => {
-  const result = await emit("avatar", { avatar: selectedAvatar, color: selectedColor });
-  me = result.user;
-  renderAccount();
-  toast("บันทึกแล้ว");
-});
-
-$("#nameForm").onsubmit = event => {
+// ปุ่มบันทึกปุ่มเดียว บันทึกทั้งชื่อ ตัวละคร และสี
+$("#profileForm").onsubmit = event => {
   event.preventDefault();
   attempt(async () => {
-    const result = await emit("rename", { name: $("#nameInput").value });
+    const result = await emit("profile", {
+      name: $("#nameInput").value,
+      avatar: selectedAvatar,
+      color: selectedColor
+    });
     me = result.user;
     renderAccount();
-    toast("เปลี่ยนชื่อแล้ว");
+    toast("บันทึกแล้ว");
   });
 };
 
+// สุ่มชื่อลงในช่องเท่านั้น ยังไม่บันทึกจนกว่าจะกดบันทึก
 $("#randomName").onclick = () => attempt(async () => {
-  const result = await emit("rename", { random: true });
-  me = result.user;
-  $("#nameInput").value = me.name;
-  renderAccount();
-  toast("สุ่มชื่อใหม่แล้ว");
+  const result = await emit("suggestName");
+  $("#nameInput").value = result.name;
 });
 
 $("#copyCode").onclick = () => attempt(async () => {
@@ -437,7 +502,8 @@ function renderLobby() {
     <div class="row">
       <span class="badge">หมาป่า ${plan.wolves} คน (${room.settings.wolfPercent}%)</span>
       <span class="badge">ชาวบ้านธรรมดา ${plan.villagers} คน</span>
-      <span class="badge">ฝ่ายอิสระ ${plan.neutrals.length} คน</span>
+      <span class="badge">ฝ่ายเป็นกลาง ${plan.neutrals.length} คน</span>
+      ${room.settings.blind ? '<span class="badge">โหมดไม่รู้บทบาท</span>' : ""}
     </div>
     <small>บทบาทพิเศษ: ${esc(specialNames || "ไม่มี")}</small>
     <small>กลางคืน ${room.settings.nightSeconds}s · คุย ${room.settings.daySeconds}s · โหวต ${room.settings.voteSeconds}s</small>
@@ -455,23 +521,6 @@ function renderLobby() {
     $("#startButton").onclick = () => attempt(() => emit("start"));
   }
 }
-
-const ROLE_OPTIONS = [
-  ["sheriff", "นายอำเภอ: โหวตนับ 2 คะแนน"],
-  ["doctor", "หมอ: ช่วยคนไม่ให้ตาย"],
-  ["seer", "ผู้หยั่งรู้: ตรวจว่าใครเป็นหมาป่า"],
-  ["cupid", "ผู้ผูกคู่รัก: เลือกคู่รักคืนแรก"],
-  ["knight", "อัศวิน: กันภัยให้คนอื่น 1 ครั้ง"],
-  ["police", "ตำรวจ: จัดการคน 1 ครั้ง ถ้าผิดตัวเองก็ออก"],
-  ["priest", "นักบวช: ชุบชีวิตคน 1 ครั้ง"],
-  ["jester", "ตัวตลก: ถูกโหวตออกคือชนะ"],
-  ["pet", "สัตว์เลี้ยงกับเจ้าของ: มาเป็นคู่"]
-];
-const WOLF_OPTIONS = [
-  ["loneWolf", "หมาป่าเดียวดาย: ไม่รู้ว่าใครเป็นพวก และไม่มีแชทหมาป่า"],
-  ["hybrid", "ลูกครึ่ง: ผู้หยั่งรู้จะเห็นเป็นชาวบ้าน"],
-  ["alpha", "จ่าฝูง: โหวตกลางคืนนับ 2 คะแนน"]
-];
 
 let settingsKey = "";
 
@@ -491,10 +540,6 @@ function renderSettings() {
 
   const wasOpen = panel.querySelector("details")?.open;
   const s = room.settings;
-  const check = ([value, label]) => `
-    <label class="check-row">
-      <input type="checkbox" name="role" value="${value}" ${s.roles[value] ? "checked" : ""}> ${esc(label)}
-    </label>`;
 
   panel.innerHTML = `
     <details ${wasOpen ? "open" : ""}>
@@ -515,10 +560,8 @@ function renderSettings() {
             <input name="wolfPercent" type="number" min="1" max="49" value="${s.wolfPercent}" required>
           </label>
         </div>
-        <h3>บทบาทพิเศษ (ชาวบ้านและฝ่ายอิสระ)</h3>
-        <div class="grid2">${ROLE_OPTIONS.map(check).join("")}</div>
-        <h3>หมาป่าพิเศษ</h3>
-        <div class="grid2">${WOLF_OPTIONS.map(check).join("")}</div>
+        ${roleCheckboxes(s.roles)}
+        ${blindCheckbox(s.blind)}
         <div class="grid3">
           <label>กลางคืน (วินาที)<input name="nightSeconds" type="number" min="15" max="600" value="${s.nightSeconds}" required></label>
           <label>คุย (วินาที)<input name="daySeconds" type="number" min="15" max="600" value="${s.daySeconds}" required></label>
@@ -544,6 +587,7 @@ function renderSettings() {
         nightSeconds: Number(form.get("nightSeconds")),
         daySeconds: Number(form.get("daySeconds")),
         voteSeconds: Number(form.get("voteSeconds")),
+        blind: form.get("blind") === "on",
         roles
       });
       toast("บันทึกแล้ว");
@@ -560,12 +604,18 @@ function interaction() {
   const ids = list => new Set(list.map(p => p.id));
 
   if (room.phase === "vote") {
+    const key = room.id + ":" + room.round;
+    if (key !== voteDraftKey) {
+      voteDraftKey = key;
+      voteDraft = typeof m.vote === "string" && m.vote !== "skip" ? m.vote : null;
+    }
     return {
       type: "vote",
       title: "โหวตคนที่สงสัย",
-      help: "แตะการ์ดผู้เล่นเพื่อโหวต แตะซ้ำเพื่อยกเลิก เปลี่ยนได้จนกว่าจะหมดเวลา หรือทุกคนโหวตครบ",
+      help: "แตะการ์ดผู้เล่นเพื่อเลือก แล้วกดยืนยันโหวต คะแนนจะนับเมื่อยืนยันแล้วเท่านั้น เปลี่ยนได้จนกว่าจะหมดเวลา",
       targets: ids(alive),
       choice: m.vote,
+      draft: voteDraft,
       counts: room.tally || {},
       skipCount: room.skipCount || 0,
       progress: room.progress
@@ -577,6 +627,11 @@ function interaction() {
   const base = (title, help, list, counts = null) => ({
     type: "action", title, help, targets: ids(list), choice: m.choice, counts
   });
+
+  // โหมดไม่รู้บทบาท: ทุกคนเลือกเป้าหมายได้ทุกคืน ถ้าบทบาทไม่มีผลก็ไม่เกิดอะไรขึ้น
+  if (role === "unknown") {
+    return base("เลือกเป้าหมายคืนนี้", "คุณไม่รู้บทบาทของตัวเอง ลองเลือกใครสักคน ถ้าบทบาทของคุณไม่มีผลก็จะไม่เกิดอะไรขึ้น ข้ามได้", alive);
+  }
 
   if (role === "cupid" && room.round === 1) {
     const key = room.id + ":" + room.round;
@@ -596,7 +651,7 @@ function interaction() {
     return m.priestUsed || !dead.length ? null : base("เลือกคนที่จะชุบชีวิต", "ใช้ได้ครั้งเดียว เปลี่ยนใจหรือข้ามได้จนกว่าจะหมดเวลา", dead);
   }
   if (role === "police") {
-    return m.policeUsed ? null : base("เลือกคนที่จะจัดการ", "ใช้ได้ครั้งเดียว ถ้าไม่ใช่หมาป่า คุณจะออกจากเกมด้วย (ข้ามได้ ไม่เสียสิทธิ์)", alive.filter(p => p.id !== me.id));
+    return m.policeUsed ? null : base("เลือกคนที่จะจัดการ", "ใช้ได้ครั้งเดียว ถ้าเลือกฝ่ายชาวบ้าน คุณจะออกจากเกมด้วย (หมาป่าและฝ่ายเป็นกลางไม่เป็นไร ข้ามได้ ไม่เสียสิทธิ์)", alive.filter(p => p.id !== me.id));
   }
   if (m.faction === "wolf") {
     const targets = role === "loneWolf" ? alive.filter(p => p.id !== me.id) : alive.filter(p => p.faction !== "wolf");
@@ -608,7 +663,9 @@ function interaction() {
     return base("เลือกคนที่จะกำจัด", help, targets, role === "loneWolf" ? null : room.tally);
   }
   if (role === "doctor") return base("เลือกคนที่จะช่วย", "เลือกตัวเองได้ แต่เลือกคนเดิมติดกันไม่ได้", alive.filter(p => p.id !== m.lastHeal));
-  if (role === "seer") return base("เลือกคนที่จะตรวจ", "ผลจะขึ้นในโน้ตลับตอนจบคืน (ลูกครึ่งจะแสดงว่าไม่ใช่หมาป่า)", alive.filter(p => p.id !== me.id));
+  if (role === "seer") return base("เลือกคนที่จะตรวจ", "ผลจะแสดงบทบาทของคนนั้นในโน้ตลับตอนจบคืน (ลูกครึ่งจะแสดงเป็นชาวบ้าน)", alive.filter(p => p.id !== me.id));
+  if (role === "hunter") return base("เลือกคนที่จะคุ้มครอง", "ถ้าคนนั้นถูกหมาป่าฆ่า เขาจะไม่ตาย และหมาป่าที่ลงมือจะตายแทน (สุ่ม 1 ตัว)", alive.filter(p => p.id !== me.id));
+  if (role === "thief") return base("เลือกคนที่จะขโมยโหวต", "โหวตของคนนั้นในวันถัดไปจะไม่นับ และโหวตของคุณเพิ่มขึ้น 1", alive.filter(p => p.id !== me.id));
   if (role === "knight") return m.knightUsed ? null : base("เลือกคนที่จะปกป้อง", "ปกป้องสำเร็จแล้วพลังจะหมด", alive);
   return null;
 }
@@ -628,6 +685,12 @@ function pickTarget(id) {
     renderAction();
     return;
   }
+  if (I.type === "vote") {
+    voteDraft = voteDraft === id ? null : id;
+    renderPlayers();
+    renderAction();
+    return;
+  }
   submitChoice(I, I.choice === id ? null : id);
 }
 
@@ -638,11 +701,21 @@ function submitChoice(I, value) {
 }
 
 $("#players").onclick = event => {
+  const kickButton = event.target.closest("[data-kick]");
+  if (kickButton) {
+    event.stopPropagation();
+    const target = room?.players.find(p => p.id === kickButton.dataset.kick);
+    if (target && confirm(`เตะ ${target.name} ออกจากห้อง? เตะแล้วเข้ามาใหม่ไม่ได้`)) {
+      attempt(() => emit("kick", { id: target.id }));
+    }
+    return;
+  }
   const cardEl = event.target.closest("[data-pid]");
   if (cardEl) pickTarget(cardEl.dataset.pid);
 };
 $("#players").onkeydown = event => {
   if (event.key !== "Enter" && event.key !== " ") return;
+  if (event.target.closest("[data-kick]")) return;
   const cardEl = event.target.closest("[data-pid]");
   if (cardEl) {
     event.preventDefault();
@@ -654,7 +727,11 @@ function renderPlayers() {
   const I = interaction();
   $("#players").innerHTML = room.players.map(player => {
     const selectable = Boolean(I && I.targets.has(player.id));
-    const selected = I ? (I.type === "pair" ? pairPick.includes(player.id) : I.choice === player.id) : false;
+    const selected = I
+      ? (I.type === "pair" ? pairPick.includes(player.id) : I.type === "vote" ? I.draft === player.id : I.choice === player.id)
+      : false;
+    const confirmed = I?.type === "vote" && I.choice === player.id;
+    const canKick = room.hostId === me.id && player.id !== me.id && !player.left && room.phase !== "ended";
     const count = I?.counts?.[player.id] || 0;
     return `
     <div class="player ${player.alive ? "" : "out"} ${player.id === me.id ? "self" : ""} ${selectable ? "selectable" : ""} ${selected ? "selected" : ""}"
@@ -671,7 +748,8 @@ function renderPlayers() {
       <small class="${player.online ? "good" : "bad"}">${player.online ? "ออนไลน์" : "ออฟไลน์"}</small>
       ${room.phase === "lobby" ? `<small class="${player.ready ? "good" : ""}">${player.ready ? "พร้อมแล้ว" : "ยังไม่พร้อม"}</small>` : `<small>${player.left ? "ออกจากห้องแล้ว" : player.alive ? "ยังอยู่" : "ออกแล้ว"}</small>`}
       ${player.roleName ? `<small>${esc(player.roleName)}</small>` : ""}
-      ${selected ? '<small class="pick-note">✓ ที่คุณเลือก</small>' : ""}
+      ${confirmed ? '<small class="pick-note">✓ ยืนยันโหวตแล้ว</small>' : selected ? `<small class="pick-note">✓ ${I.type === "vote" ? "เลือกไว้ (ยังไม่ยืนยัน)" : "ที่คุณเลือก"}</small>` : ""}
+      ${canKick ? `<button type="button" class="danger kick-button" data-kick="${esc(player.id)}">เตะออก</button>` : ""}
     </div>`;
   }).join("");
 }
@@ -725,6 +803,12 @@ function renderAction() {
       status = Array.isArray(I.choice)
         ? `ยืนยันแล้ว: ${I.choice.map(nameOf).join(" + ")}`
         : I.choice === "skip" ? "ข้ามแล้ว" : pairPick.length ? `เลือกไว้: ${pairPick.map(nameOf).join(" + ")} (ยังไม่ยืนยัน)` : "ยังไม่ได้เลือก";
+    } else if (I.type === "vote") {
+      const draftChanged = I.draft && I.draft !== I.choice;
+      status = I.choice === "skip" && !I.draft ? "ข้ามแล้ว"
+        : draftChanged ? `เลือกไว้: ${nameOf(I.draft)} (ยังไม่ยืนยัน)`
+        : I.choice && I.choice !== "skip" ? `ยืนยันโหวตแล้ว: ${nameOf(I.choice)}`
+        : "ยังไม่ได้เลือก";
     } else {
       status = I.choice === "skip" ? "ข้ามแล้ว" : I.choice ? `เลือกอยู่: ${nameOf(I.choice)}` : "ยังไม่ได้เลือก";
     }
@@ -736,13 +820,20 @@ function renderAction() {
         <p class="${I.choice ? "good" : "muted"}" style="margin:0">${esc(status)}</p>
         <div class="row">
           ${I.type === "pair" ? `<button id="pairConfirm" ${pairPick.length === 2 ? "" : "disabled"}>ยืนยันคู่รัก</button>` : ""}
+          ${I.type === "vote" ? `<button id="voteConfirm" class="success" ${I.draft && I.draft !== I.choice ? "" : "disabled"}>ยืนยันโหวต</button>` : ""}
           <button id="skipButton" class="${I.choice === "skip" ? "success" : "secondary"}">${I.choice === "skip" ? "✓ ข้ามอยู่ (แตะเพื่อยกเลิก)" : "ข้าม"}${I.type === "vote" ? ` (${I.skipCount})` : ""}</button>
         </div>
         ${progress}
         <small>${esc(I.help)}</small>
       </div>
     `);
-    $("#skipButton").onclick = () => submitChoice(I, I.choice === "skip" ? null : "skip");
+    $("#skipButton").onclick = () => {
+      if (I.type === "vote") voteDraft = null;
+      submitChoice(I, I.choice === "skip" ? null : "skip");
+    };
+    if (I.type === "vote") {
+      $("#voteConfirm").onclick = () => attempt(() => emit("vote", { target: voteDraft }));
+    }
     if (I.type === "pair") {
       $("#pairConfirm").onclick = () => attempt(() => emit("action", { targets: pairPick }));
     }
