@@ -63,7 +63,7 @@ const ROLE_GROUPS = [
     ]
   },
   {
-    title: "ฝ่ายหมาป่า",
+    title: "ฝ่ายหมาป่าพิเศษ",
     roles: [
       ["loneWolf", "หมาป่าเดียวดาย: ไม่รู้ว่าใครเป็นพวก และไม่มีแชทหมาป่า"],
       ["hybrid", "ลูกครึ่ง: ผู้หยั่งรู้จะเห็นเป็นชาวบ้าน"],
@@ -100,8 +100,8 @@ function modeSelect(blind) {
   return `
     <label>โหมดเกม
       <select name="mode">
-        <option value="normal" ${blind ? "" : "selected"}>ธรรมดา (ทุกคนรู้บทบาทตัวเอง)</option>
-        <option value="blind" ${blind ? "selected" : ""}>ไม่รู้จักตัวเอง (ทุกคนไม่รู้บทบาท เลือกเป้าหมายได้ทุกคืน)</option>
+        <option value="normal" ${blind ? "" : "selected"}>ธรรมดา</option>
+        <option value="blind" ${blind ? "selected" : ""}>ไม่รู้จักตัวเอง (ทุกคนไม่รู้บทบาทของตัวเอง)</option>
       </select>
     </label>`;
 }
@@ -126,8 +126,6 @@ let selectedColor = COLORS[0];
 let toastTimer;
 let actionKey = "";
 let lastMessagesKey = "";
-let voteDraft = null;
-let voteDraftKey = "";
 let photoDraft; // undefined = ไม่เปลี่ยน, null = ลบรูป, string = รูปใหม่ (data URL)
 let createBlind = false;
 let createRolesState = { doctor: true, seer: true };
@@ -590,12 +588,8 @@ function renderLobby() {
   if (panel.hidden) return;
 
   const plan = room.plan;
-  const specialNames = plan.specials.map(role => ROLE_NAMES[role]).join(", ");
   let warning = "";
 
-  if (plan.trimmed) {
-    warning += `<p class="muted">เลือกบทบาทไว้ ${plan.requested} แต่คนไม่พอ จะสุ่มใช้ ${plan.used} บทบาท</p>`;
-  }
   const notReady = room.players.filter(p => !p.ready).length;
   const offline = room.players.filter(p => !p.online).length;
   const canStart = room.players.length >= 4 && !notReady && !offline;
@@ -613,7 +607,6 @@ function renderLobby() {
       <span class="badge">ฝ่ายเป็นกลาง ${plan.neutrals.length} คน</span>
       ${room.settings.blind ? '<span class="badge">โหมดไม่รู้จักตัวเอง</span>' : ""}
     </div>
-    <small>บทบาทพิเศษ: ${esc(specialNames || "ไม่มี")}</small>
     <small>กลางคืน ${room.settings.nightSeconds}s · คุย ${room.settings.daySeconds}s · โหวต ${room.settings.voteSeconds}s</small>
     ${warning}
     <div class="row">
@@ -720,18 +713,12 @@ function interaction() {
   const ids = list => new Set(list.map(p => p.id));
 
   if (room.phase === "vote") {
-    const key = room.id + ":" + room.round;
-    if (key !== voteDraftKey) {
-      voteDraftKey = key;
-      voteDraft = typeof m.vote === "string" && m.vote !== "skip" ? m.vote : null;
-    }
     return {
       type: "vote",
       title: "โหวตคนที่สงสัย",
-      help: "แตะการ์ดผู้เล่นเพื่อเลือก แล้วกดยืนยันโหวต คะแนนจะนับเมื่อยืนยันแล้วเท่านั้น เปลี่ยนได้จนกว่าจะหมดเวลา",
+      help: "แตะการ์ดผู้เล่นเพื่อโหวตทันที แตะซ้ำเพื่อยกเลิก เปลี่ยนได้จนกว่าจะหมดเวลา ตัวเลขบนการ์ดคือคะแนนที่คนนั้นได้ตอนนี้",
       targets: ids(alive),
       choice: m.vote,
-      draft: voteDraft,
       counts: room.tally || {},
       skipCount: room.skipCount || 0,
       progress: room.progress
@@ -801,12 +788,6 @@ function pickTarget(id) {
     renderAction();
     return;
   }
-  if (I.type === "vote") {
-    voteDraft = voteDraft === id ? null : id;
-    renderPlayers();
-    renderAction();
-    return;
-  }
   submitChoice(I, I.choice === id ? null : id);
 }
 
@@ -843,10 +824,7 @@ function renderPlayers() {
   const I = interaction();
   $("#players").innerHTML = room.players.map(player => {
     const selectable = Boolean(I && I.targets.has(player.id));
-    const selected = I
-      ? (I.type === "pair" ? pairPick.includes(player.id) : I.type === "vote" ? I.draft === player.id : I.choice === player.id)
-      : false;
-    const confirmed = I?.type === "vote" && I.choice === player.id;
+    const selected = I ? (I.type === "pair" ? pairPick.includes(player.id) : I.choice === player.id) : false;
     const canKick = room.hostId === me.id && player.id !== me.id && !player.left && room.phase !== "ended";
     const count = I?.counts?.[player.id] || 0;
     return `
@@ -864,7 +842,7 @@ function renderPlayers() {
       <small class="${player.online ? "good" : "bad"}">${player.online ? "ออนไลน์" : "ออฟไลน์"}</small>
       ${room.phase === "lobby" ? `<small class="${player.ready ? "good" : ""}">${player.ready ? "พร้อมแล้ว" : "ยังไม่พร้อม"}</small>` : `<small>${player.left ? "ออกจากห้องแล้ว" : player.alive ? "ยังอยู่" : "ออกแล้ว"}</small>`}
       ${player.roleName ? `<small>${esc(player.roleName)}</small>` : ""}
-      ${confirmed ? '<small class="pick-note">✓ ยืนยันโหวตแล้ว</small>' : selected ? `<small class="pick-note">✓ ${I.type === "vote" ? "เลือกไว้ (ยังไม่ยืนยัน)" : "ที่คุณเลือก"}</small>` : ""}
+      ${selected ? `<small class="pick-note">✓ ${I.type === "vote" ? "คุณโหวตคนนี้" : "ที่คุณเลือก"}</small>` : ""}
       ${canKick ? `<button type="button" class="danger kick-button" data-kick="${esc(player.id)}">เตะออก</button>` : ""}
     </div>`;
   }).join("");
@@ -919,14 +897,8 @@ function renderAction() {
       status = Array.isArray(I.choice)
         ? `ยืนยันแล้ว: ${I.choice.map(nameOf).join(" + ")}`
         : I.choice === "skip" ? "ข้ามแล้ว" : pairPick.length ? `เลือกไว้: ${pairPick.map(nameOf).join(" + ")} (ยังไม่ยืนยัน)` : "ยังไม่ได้เลือก";
-    } else if (I.type === "vote") {
-      const draftChanged = I.draft && I.draft !== I.choice;
-      status = I.choice === "skip" && !I.draft ? "ข้ามแล้ว"
-        : draftChanged ? `เลือกไว้: ${nameOf(I.draft)} (ยังไม่ยืนยัน)`
-        : I.choice && I.choice !== "skip" ? `ยืนยันโหวตแล้ว: ${nameOf(I.choice)}`
-        : "ยังไม่ได้เลือก";
     } else {
-      status = I.choice === "skip" ? "ข้ามแล้ว" : I.choice ? `เลือกอยู่: ${nameOf(I.choice)}` : "ยังไม่ได้เลือก";
+      status = I.choice === "skip" ? "ข้ามแล้ว" : I.choice ? `${I.type === "vote" ? "คุณโหวต" : "เลือกอยู่"}: ${nameOf(I.choice)}` : "ยังไม่ได้เลือก";
     }
     const progress = I.progress ? `<small>โหวตแล้ว ${I.progress.done}/${I.progress.total} คน</small>` : "";
 
@@ -936,20 +908,13 @@ function renderAction() {
         <p class="${I.choice ? "good" : "muted"}" style="margin:0">${esc(status)}</p>
         <div class="row">
           ${I.type === "pair" ? `<button id="pairConfirm" ${pairPick.length === 2 ? "" : "disabled"}>ยืนยันคู่รัก</button>` : ""}
-          ${I.type === "vote" ? `<button id="voteConfirm" class="success" ${I.draft && I.draft !== I.choice ? "" : "disabled"}>ยืนยันโหวต</button>` : ""}
           <button id="skipButton" class="${I.choice === "skip" ? "success" : "secondary"}">${I.choice === "skip" ? "✓ ข้ามอยู่ (แตะเพื่อยกเลิก)" : "ข้าม"}${I.type === "vote" ? ` (${I.skipCount})` : ""}</button>
         </div>
         ${progress}
         <small>${esc(I.help)}</small>
       </div>
     `);
-    $("#skipButton").onclick = () => {
-      if (I.type === "vote") voteDraft = null;
-      submitChoice(I, I.choice === "skip" ? null : "skip");
-    };
-    if (I.type === "vote") {
-      $("#voteConfirm").onclick = () => attempt(() => emit("vote", { target: voteDraft }));
-    }
+    $("#skipButton").onclick = () => submitChoice(I, I.choice === "skip" ? null : "skip");
     if (I.type === "pair") {
       $("#pairConfirm").onclick = () => attempt(() => emit("action", { targets: pairPick }));
     }
