@@ -311,14 +311,37 @@ function wolfCount(room) {
   );
 }
 
-function planRoles(room) {
+// random=true: สุ่มตัดบทบาทที่เกินจำนวนคน (ใช้ตอนเริ่มเกม)
+// random=false: ตัดตามลำดับคงที่ (ใช้แสดงตัวอย่างในห้องรอ จะได้ไม่กระพริบ)
+function planRoles(room, random = false) {
+  const n = room.players.length;
   const wolves = wolfCount(room);
-  const wolfSpecials = SPECIAL_WOLF_ROLES.filter(r => room.settings.roles[r]);
-  const villageSpecials = VILLAGE_SPECIAL_ROLES.filter(r => room.settings.roles[r]);
-  const neutrals = room.settings.roles.jester ? ["jester"] : [];
+  const order = list => (random ? shuffle(list) : list);
 
-  const enoughWolfSlots = wolfSpecials.length <= wolves;
-  const enoughPlayerSlots = wolves + villageSpecials.length + neutrals.length <= room.players.length;
+  const wolfPool = SPECIAL_WOLF_ROLES.filter(r => room.settings.roles[r]);
+  const wolfSpecials = order(wolfPool).slice(0, wolves);
+
+  // แต่ละหน่วยคือบทบาทที่ต้องลงไปพร้อมกัน (สัตว์เลี้ยง+เจ้าของต้องมาเป็นคู่)
+  const units = [];
+  for (const role of VILLAGE_SPECIAL_ROLES) {
+    if (!room.settings.roles[role] || role === "owner") continue;
+    units.push(role === "pet" ? ["pet", "owner"] : [role]);
+  }
+  if (room.settings.roles.jester) units.push(["jester"]);
+
+  let slots = Math.max(0, n - wolves);
+  const chosen = [];
+  for (const unit of order(units)) {
+    if (unit.length <= slots) {
+      chosen.push(...unit);
+      slots -= unit.length;
+    }
+  }
+
+  const villageSpecials = chosen.filter(r => r !== "jester");
+  const neutrals = chosen.filter(r => r === "jester");
+  const requested = wolfPool.length + units.reduce((sum, u) => sum + u.length, 0);
+  const used = wolfSpecials.length + chosen.length;
 
   return {
     wolves,
@@ -326,10 +349,11 @@ function planRoles(room) {
     villageSpecials,
     neutrals,
     specials: [...wolfSpecials, ...villageSpecials, ...neutrals],
-    villagers: Math.max(0, room.players.length - wolves - villageSpecials.length - neutrals.length),
-    enoughWolfSlots,
-    enoughPlayerSlots,
-    enough: enoughWolfSlots && enoughPlayerSlots
+    villagers: Math.max(0, n - wolves - villageSpecials.length - neutrals.length),
+    requested,
+    used,
+    trimmed: used < requested,
+    enough: true
   };
 }
 
@@ -411,6 +435,7 @@ function snapshot(room, userId) {
         ...publicUser(user),
         ready: player.ready,
         alive: player.alive,
+        left: Boolean(player.left),
         online: isOnline(player.id),
         role: showRole ? player.role : null,
         roleName: showRole ? ROLE_NAMES[player.role] : null,
@@ -526,6 +551,7 @@ function newPlayer(id) {
     id,
     ready: false,
     alive: true,
+    left: false,
     role: null,
     lover: null,
     bondId: null,
@@ -542,87 +568,84 @@ function newPlayer(id) {
 function leaveRoom(userId) {
   const room = rooms.get(userRoom.get(userId));
   if (!room) return;
-  if (!["lobby", "ended"].includes(room.phase)) {
-    throw new Error("เกมกำลังเล่นอยู่ กรุณารอจบเกม");
-  }
 
-  room.players = room.players.filter(p => p.id !== userId);
+  const inGame = !["lobby", "ended"].includes(room.phase);
+  const player = room.players.find(p => p.id === userId);
+  const name = getUser(userId).name;
+
   userRoom.delete(userId);
-
   for (const socket of io.sockets.sockets.values()) {
     if (socket.data.userId === userId) socket.emit("state", null);
   }
 
-  if (!room.players.length) {
+  if (inGame) {
+    // ออกกลางเกม: นับว่าออกจากเกม (ผู้เล่นยังอยู่ในรายชื่อห้อง แต่ถูกทำเครื่องหมายว่าออกแล้ว)
+    player.left = true;
+    const present = room.players.filter(p => !p.left);
+    if (!present.length) {
+      clearTimeout(room.timer);
+      rooms.delete(room.id);
+      broadcastLobby();
+      return;
+    }
+    if (room.hostId === userId) {
+      room.hostId = (present.find(p => isOnline(p.id)) || present[0]).id;
+    }
+    if (player.alive) eliminate(room, player, "ผู้เล่นออกจากเกมกลางคัน");
+    else message(room, "public", `${name} ออกจากห้อง`);
+    if (checkWin(room)) return;
+    sync(room);
+    return;
+  }
+
+  room.players = room.players.filter(p => p.id !== userId);
+  const present = room.players.filter(p => !p.left);
+
+  if (!present.length) {
     clearTimeout(room.timer);
     rooms.delete(room.id);
   } else {
-    if (room.hostId === userId) room.hostId = room.players[0].id;
-    message(room, "public", `${getUser(userId).name} ออกจากห้อง`);
+    if (room.hostId === userId) room.hostId = present[0].id;
+    message(room, "public", `${name} ออกจากห้อง`);
     broadcastRoom(room);
   }
   broadcastLobby();
 }
 
+const CLUE_WORDS = [
+  ["ระฆัง", "สิ่งที่ส่งเสียงเมื่อถูกสั่น"],
+  ["กระจก", "สิ่งที่สะท้อนภาพ"],
+  ["เทียน", "สิ่งที่ให้แสงและค่อย ๆ สั้นลง"],
+  ["กุญแจ", "สิ่งที่ใช้เปิดสิ่งที่ปิดล็อก"],
+  ["หนังสือ", "สิ่งที่เก็บเรื่องราวไว้เป็นหน้า"],
+  ["นาฬิกา", "สิ่งที่บอกการเคลื่อนผ่านของเวลา"],
+  ["ร่ม", "สิ่งที่กางเพื่อบังฝน"],
+  ["หน้ากาก", "สิ่งที่ใช้ปิดบังใบหน้า"],
+  ["ดอกกุหลาบ", "ดอกไม้ที่มักมีหนาม"],
+  ["จดหมาย", "ข้อความที่ส่งถึงใครบางคน"],
+  ["ขนนก", "สิ่งเบาบางที่ปกคลุมตัวนก"],
+  ["เข็มทิศ", "สิ่งที่ช่วยบอกทิศทาง"],
+  ["กล่องดนตรี", "ภาชนะเล็กที่บรรเลงเสียงเพลง"],
+  ["ลูกแก้ว", "วัตถุกลมเล็กที่มักโปร่งใส"],
+  ["ผ้าพันคอ", "สิ่งที่ใช้พันเพื่อให้คออบอุ่น"],
+  ["รองเท้า", "สิ่งที่สวมก่อนออกเดินทาง"]
+];
+
+// ทุกคนที่ไม่ใช่หมาป่าได้ "คำเดียวกัน" ส่วนหมาป่าได้แค่คำใบ้ทางอ้อมของคำนั้น
 function makeClues(room) {
-  const vocabulary = shuffle([
-    ["ระฆัง", "สิ่งที่ส่งเสียงเมื่อถูกสั่น"],
-    ["กระจก", "สิ่งที่สะท้อนภาพ"],
-    ["เทียน", "สิ่งที่ให้แสงและค่อย ๆ สั้นลง"],
-    ["กุญแจ", "สิ่งที่ใช้เปิดสิ่งที่ปิดล็อก"],
-    ["หนังสือ", "สิ่งที่เก็บเรื่องราวไว้เป็นหน้า"],
-    ["นาฬิกา", "สิ่งที่บอกการเคลื่อนผ่านของเวลา"],
-    ["ร่ม", "สิ่งที่กางเพื่อบังฝน"],
-    ["หน้ากาก", "สิ่งที่ใช้ปิดบังใบหน้า"],
-    ["ดอกกุหลาบ", "ดอกไม้ที่มักมีหนาม"],
-    ["จดหมาย", "ข้อความที่ส่งถึงใครบางคน"],
-    ["ขนนก", "สิ่งเบาบางที่ปกคลุมตัวนก"],
-    ["เข็มทิศ", "สิ่งที่ช่วยบอกทิศทาง"],
-    ["กล่องดนตรี", "ภาชนะเล็กที่บรรเลงเสียงเพลง"],
-    ["ลูกแก้ว", "วัตถุกลมเล็กที่มักโปร่งใส"],
-    ["ผ้าพันคอ", "สิ่งที่ใช้พันเพื่อให้คออบอุ่น"],
-    ["รองเท้า", "สิ่งที่สวมก่อนออกเดินทาง"]
-  ]);
+  if (!room.wordPool?.length) room.wordPool = shuffle(CLUE_WORDS);
+  const [word, hint] = room.wordPool.pop();
 
-  const alive = alivePlayers(room);
-  const wolves = shuffle(alive.filter(isWolf));
-  const villagers = shuffle(alive.filter(p => !isWolf(p)));
-  const size = Math.max(6, wolves.length, villagers.length);
-
-  const fragments = Array.from({ length: size }, (_, index) => {
-    const [word, hint] = vocabulary[index % vocabulary.length];
-    const marker = index + 1;
-    return {
-      word: `${word}ที่จุด ${marker}`,
-      hint: `จุด ${marker}: ${hint}`,
-      sentence: `ที่จุด ${marker} มี${word}`
-    };
+  room.clueHistory.push({
+    round: room.round,
+    sentence: `คำของฝั่งชาวบ้านคือ "${word}" · คำใบ้ที่หมาป่าได้รับ: ${hint}`
   });
 
-  const sentence =
-    `คืนที่ ${room.round} บนเส้นทางรอบหมู่บ้าน ` +
-    fragments.map(x => x.sentence).join(" และ ");
-
-  room.clueHistory.push({ round: room.round, sentence });
-
-  const villageDeck = shuffle(fragments);
-  const wolfDeck = shuffle(fragments);
-
-  villagers.forEach((p, index) => {
-    p.clue = {
-      round: room.round,
-      type: "คำจากประโยค",
-      text: villageDeck[index].word
-    };
-  });
-
-  wolves.forEach((p, index) => {
-    p.clue = {
-      round: room.round,
-      type: "คำใบ้ทางอ้อม",
-      text: wolfDeck[index].hint
-    };
-  });
+  for (const p of alivePlayers(room)) {
+    p.clue = isWolf(p)
+      ? { round: room.round, type: "คำใบ้ทางอ้อม", text: hint }
+      : { round: room.round, type: "คำของฝั่งชาวบ้าน (ทุกคนได้คำเดียวกัน)", text: word };
+  }
 }
 
 function setPhase(room, phase, seconds) {
@@ -633,7 +656,7 @@ function setPhase(room, phase, seconds) {
   room.timer = setTimeout(() => {
     try {
       if (phase === "night") resolveNight(room);
-      else if (phase === "day") beginVote(room);
+      else if (phase === "day") (room.round === 1 ? beginNight(room) : beginVote(room));
       else if (phase === "vote") resolveVote(room);
     } catch (error) {
       console.error("Game error:", error);
@@ -703,11 +726,24 @@ function eliminate(room, player, reason, killerIds = []) {
   }
 }
 
-function beginNight(room) {
-  room.round++;
+function beginDay(room) {
   room.actions = {};
   room.votes = {};
   makeClues(room);
+  message(
+    room,
+    "public",
+    room.round === 1
+      ? "เช้าวันที่ 1 — วันแรกยังไม่มีการโหวต แลกเปลี่ยนเบาะแสกันก่อน"
+      : `เช้าวันที่ ${room.round} — สนทนาและแลกเปลี่ยนเบาะแส`
+  );
+  setPhase(room, "day", room.settings.daySeconds);
+  sync(room);
+}
+
+function beginNight(room) {
+  room.actions = {};
+  room.votes = {};
   message(room, "public", `เริ่มคืนที่ ${room.round}`);
   setPhase(room, "night", room.settings.nightSeconds);
   sync(room);
@@ -742,7 +778,7 @@ function resolveNight(room) {
 
   for (const priest of actors.filter(p => p.role === "priest")) {
     const targetId = room.actions[priest.id];
-    const target = room.players.find(p => p.id === targetId && !p.alive);
+    const target = room.players.find(p => p.id === targetId && !p.alive && !p.left);
     if (!target) continue;
     target.alive = true;
     target.clue = null;
@@ -836,9 +872,8 @@ function resolveNight(room) {
 
   if (checkWin(room)) return;
 
-  message(room, "public", "เช้าแล้ว! สนทนาและแลกเปลี่ยนเบาะแส");
-  setPhase(room, "day", room.settings.daySeconds);
-  sync(room);
+  room.round++;
+  beginDay(room);
 }
 
 function beginVote(room) {
@@ -855,6 +890,7 @@ function resolveVote(room) {
   for (const player of voters) {
     const targetId = room.votes[player.id];
     if (!targetId || targetId === "skip") continue;
+    if (!room.players.some(p => p.id === targetId && p.alive)) continue;
     const weight = player.role === "sheriff" ? 2 : 1;
     scores.set(targetId, (scores.get(targetId) || 0) + weight);
   }
@@ -1015,11 +1051,8 @@ io.on("connection", socket => {
     if (!room.players.every(p => p.ready)) throw new Error("ผู้เล่นทุกคนต้องกดพร้อมก่อน");
     if (!room.players.every(p => isOnline(p.id))) throw new Error("ยังมีผู้เล่นออฟไลน์อยู่");
 
-    const plan = planRoles(room);
-    if (!plan.enoughWolfSlots) {
-      throw new Error(`โควตาหมาป่ามี ${plan.wolves} คน แต่เลือกหมาป่าพิเศษ ${plan.wolfSpecials.length} บทบาท`);
-    }
-    if (!plan.enoughPlayerSlots) throw new Error("ผู้เล่นไม่พอสำหรับบทบาทที่เลือก");
+    // บทบาทที่เลือกไว้เกินจำนวนคน → สุ่มตัดออกให้พอดี เริ่มเกมได้เลยโดยไม่ต้องรอใครพร้อม
+    const plan = planRoles(room, true);
 
     const deck = shuffle([
       ...Array(plan.wolves - plan.wolfSpecials.length).fill("wolf"),
@@ -1043,10 +1076,31 @@ io.on("connection", socket => {
     }
 
     room.messages = [];
-    room.round = 0;
+    room.round = 1;
     room.winner = null;
     room.clueHistory = [];
-    beginNight(room);
+    room.wordPool = null;
+    if (plan.trimmed) {
+      message(room, "public", `บทบาทที่เลือกมากกว่าจำนวนผู้เล่น ระบบสุ่มใช้ ${plan.used} จาก ${plan.requested} บทบาท`);
+    }
+    beginDay(room);
+  });
+
+  on("settings", data => {
+    const room = requireRoom(userId);
+    requireHost(room, userId);
+    if (room.phase !== "lobby") throw new Error("ปรับตั้งค่าได้เฉพาะตอนรอผู้เล่น");
+
+    const settings = cleanSettings(data);
+    if (settings.capacity !== null && settings.capacity < room.players.length) {
+      throw new Error(`จำนวนผู้เล่นสูงสุดต้องไม่น้อยกว่าคนในห้องตอนนี้ (${room.players.length} คน)`);
+    }
+
+    room.settings = settings;
+    const title = String(data.title || "").trim().slice(0, 50);
+    if (title) room.title = title;
+    message(room, "public", "เจ้าของห้องปรับการตั้งค่าห้อง");
+    sync(room);
   });
 
   on("reset", () => {
@@ -1054,7 +1108,7 @@ io.on("connection", socket => {
     requireHost(room, userId);
     if (room.phase !== "ended") throw new Error("เกมยังไม่จบ");
 
-    room.players = room.players.map(p => newPlayer(p.id));
+    room.players = room.players.filter(p => !p.left).map(p => newPlayer(p.id));
     room.phase = "lobby";
     room.round = 0;
     room.winner = null;
@@ -1063,6 +1117,7 @@ io.on("connection", socket => {
     room.votes = {};
     room.messages = [];
     room.clueHistory = [];
+    room.wordPool = null;
 
     message(room, "public", "กลับสู่ห้องรอ กดพร้อมเพื่อเล่นรอบใหม่");
     sync(room);
@@ -1095,7 +1150,7 @@ io.on("connection", socket => {
 
     if (player.role === "priest") {
       if (player.priestUsed) throw new Error("คุณใช้การคืนชีพไปแล้ว");
-      const target = room.players.find(p => p.id === data.target && !p.alive);
+      const target = room.players.find(p => p.id === data.target && !p.alive && !p.left);
       if (!target) throw new Error("ต้องเลือกผู้เล่นที่ออกจากเกมแล้ว");
       room.actions[userId] = target.id;
       player.priestUsed = true;
@@ -1181,14 +1236,14 @@ io.on("connection", socket => {
 setInterval(() => {
   const now = Date.now();
   for (const room of rooms.values()) {
-    if (room.players.some(p => isOnline(p.id))) {
+    if (room.players.some(p => !p.left && isOnline(p.id))) {
       room.offlineSince = null;
       continue;
     }
     room.offlineSince ||= now;
     if (now - room.offlineSince > 30 * 60 * 1000) {
       clearTimeout(room.timer);
-      for (const p of room.players) userRoom.delete(p.id);
+      for (const p of room.players) if (!p.left) userRoom.delete(p.id);
       rooms.delete(room.id);
     }
   }
