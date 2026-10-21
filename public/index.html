@@ -2,8 +2,9 @@
 <html lang="th">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>DragoWereWolff</title>
+    <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/dragokurobane/DragoWereWolf/refs/heads/main/sekiryumon.ico">
   <style>
     :root {
       color-scheme: dark;
@@ -17,7 +18,8 @@
       --good: #55d9b2;
       --bad: #ff8295;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #3a4a6b transparent; }
+    html, body { height: 100%; }
     body {
       margin: 0;
       color: var(--text);
@@ -26,7 +28,9 @@
         radial-gradient(ellipse at 90% 40%, #17355a66, transparent 45%),
         var(--bg);
       font-family: system-ui, -apple-system, sans-serif;
-      min-height: 100vh;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
     }
     button, input, select { font: inherit; }
     button {
@@ -35,7 +39,7 @@
       border-radius: 12px;
       background: var(--accent);
       color: #fff;
-      padding: 11px 16px;
+      padding: 10px 16px;
       font-weight: 650;
       transition: transform .15s, opacity .15s;
     }
@@ -44,87 +48,92 @@
     button.secondary { background: var(--panel2); border-color: var(--line); }
     button.danger { background: #842f49; }
     button.success { background: #197964; }
+    button.sm { padding: 6px 11px; font-size: 13px; border-radius: 10px; }
     input, select {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 11px;
       background: #0c1425;
       color: var(--text);
-      padding: 12px;
+      padding: 11px;
       outline: none;
     }
     input:focus, select:focus { border-color: var(--accent); }
     input[type=checkbox] { width: auto; accent-color: var(--accent); }
-    label { display: grid; gap: 7px; color: var(--muted); font-size: 14px; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 14px; }
     h1, h2, h3, p { margin-top: 0; }
-    h1 { font-size: clamp(38px, 7vw, 68px); line-height: 1.06; }
-    h2 { font-size: 24px; }
-    h3 { font-size: 17px; }
-    p { line-height: 1.7; }
+    h1 { font-size: clamp(30px, 5.5vw, 56px); line-height: 1.08; }
+    h2 { font-size: 22px; }
+    h3 { font-size: 16px; }
+    p { line-height: 1.65; }
     small, .muted { color: var(--muted); }
     [hidden] { display: none !important; }
-    .shell { width: min(1220px, 94%); margin: auto; }
+
+    /* ---------- เปลือกหน้าเว็บ: เต็มจอพอดี ไม่เลื่อนทั้งหน้า ---------- */
+    .shell {
+      width: min(1360px, 96%);
+      margin: 0 auto;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
     header {
+      flex: none;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 23px 0;
+      padding: 12px 0;
     }
+    main { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-bottom: 12px; }
+    body.in-room header { display: none; }
+    body.in-room .shell { width: min(1560px, 98%); padding: 8px 0; }
+    body.in-room main { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
     .brand { font-weight: 850; letter-spacing: 2px; }
     .brand span { color: var(--accent); }
     .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .between { justify-content: space-between; }
     .stack { display: grid; gap: 14px; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
     .panel {
       border: 1px solid var(--line);
-      border-radius: 22px;
-      padding: 23px;
+      border-radius: 20px;
+      padding: 20px;
       background: linear-gradient(145deg, #172139ed, #10182be8);
       box-shadow: 0 16px 50px #0002;
     }
-    .hero { min-height: 340px; display: grid; align-content: center; padding: 45px 0; }
-    .eyebrow { font-size: 12px; color: #c0acff; letter-spacing: 4px; margin-bottom: 16px; }
-    .hero p { max-width: 650px; color: var(--muted); }
-    .auth { max-width: 450px; margin: 20px auto 60px; }
-    .menu { text-align: left; min-height: 155px; }
-    .menu b { display: block; margin: 14px 0 8px; font-size: 22px; }
+    .hero { padding: 26px 0 22px; display: grid; align-content: center; }
+    .eyebrow { font-size: 12px; color: #c0acff; letter-spacing: 4px; margin-bottom: 12px; }
+    .hero p { max-width: 650px; color: var(--muted); margin-bottom: 0; }
+    .menu { text-align: left; min-height: 130px; }
+    .menu b { display: block; margin: 10px 0 6px; font-size: 22px; }
     .menu small { font-weight: 400; }
     .menu-icon { font-size: 30px; }
     .badge {
       display: inline-flex;
       align-items: center;
-      padding: 5px 10px;
+      padding: 4px 10px;
       border-radius: 30px;
       font-size: 12px;
       background: #ffffff0c;
       border: 1px solid var(--line);
+      white-space: nowrap;
     }
     .good { color: var(--good); }
     .bad { color: var(--bad); }
-    .room-list { max-height: 480px; overflow-y: auto; display: grid; gap: 12px; padding-right: 4px; }
-    .room-item { padding: 17px; border-radius: 15px; background: #ffffff05; border: 1px solid var(--line); }
-    .check-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-    .game-layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 350px;
-      gap: 18px;
-      align-items: start;
-      margin-bottom: 30px;
-    }
-    .players { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; }
-    .player {
-      padding: 15px;
-      text-align: center;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: #ffffff04;
-      overflow-wrap: anywhere;
-    }
-    .player.out { opacity: .5; }
-    .player.self { border-color: var(--accent); }
+    .room-list { max-height: 46vh; overflow-y: auto; display: grid; gap: 10px; padding-right: 4px; }
+    .room-item { padding: 14px; border-radius: 15px; background: #ffffff05; border: 1px solid var(--line); }
+    .check-row { display: flex; align-items: center; gap: 10px; padding: 3px 0; font-size: 14px; }
+    .roles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 0 18px; }
+    #browsePage > .row, #createPage > .row, #avatarPage > .row { margin-bottom: 12px; }
+    .avatar-choices, .color-choices { display: flex; gap: 10px; flex-wrap: wrap; }
+    .avatar-choices button { font-size: 27px; background: #ffffff08; padding: 8px 12px; }
+    .avatar-choices button.selected { outline: 2px solid var(--accent); }
+    .color-choices button { width: 40px; height: 40px; border-radius: 50%; padding: 0; }
+    .color-choices button.selected { outline: 3px solid white; outline-offset: 3px; }
+    .preview { font-size: 50px; width: 90px; height: 90px; border-radius: 28px; }
     .avatar {
       width: 60px;
       height: 60px;
@@ -134,48 +143,11 @@
       background: var(--avatar-color, #8b5cf6);
       margin: 0 auto 9px;
       font-size: 33px;
+      overflow: hidden;
     }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .avatar.small { width: 35px; height: 35px; font-size: 21px; border-radius: 11px; margin: 0; }
-    .player-name { font-weight: 700; margin-bottom: 5px; }
-    .player small { display: block; margin-top: 5px; }
-    .role-card { border-color: #7760ad; background: linear-gradient(140deg, #3e2b63, #15203b); }
-    .clue {
-      background: #0b1326;
-      border-left: 3px solid #c5a5ff;
-      padding: 15px;
-      border-radius: 10px;
-      margin-top: 15px;
-    }
-    .clue strong { display: block; font-size: 21px; margin-top: 6px; }
-    .timer { font-variant-numeric: tabular-nums; font-size: 27px; font-weight: 800; }
-    .chat-panel { position: sticky; top: 16px; }
-    .chat-tabs { display: flex; gap: 5px; flex-wrap: wrap; margin: 13px 0; }
-    .chat-tabs button { font-size: 12px; padding: 7px 9px; }
-    .chat-tabs button.active { background: var(--accent); border-color: transparent; }
-    .messages {
-      height: 380px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 11px;
-      padding: 12px;
-      background: #0b1221;
-      border-radius: 12px;
-    }
-    .message { font-size: 14px; overflow-wrap: anywhere; }
-    .message b { color: #c6b0ff; }
-    .message.system { color: #95b4cd; font-size: 12px; }
-    .message time { font-size: 10px; color: var(--muted); margin-left: 6px; }
-    .message p { margin: 3px 0 0; white-space: pre-wrap; line-height: 1.5; }
-    .chat-form { display: flex; gap: 7px; margin-top: 12px; }
-    .chat-form input { min-width: 0; }
-    .notes { padding-left: 20px; font-size: 14px; color: #c9d5ee; line-height: 1.8; }
-    .avatar-choices, .color-choices { display: flex; gap: 10px; flex-wrap: wrap; }
-    .avatar-choices button { font-size: 29px; background: #ffffff08; }
-    .avatar-choices button.selected { outline: 2px solid var(--accent); }
-    .color-choices button { width: 43px; height: 43px; border-radius: 50%; }
-    .color-choices button.selected { outline: 3px solid white; outline-offset: 3px; }
-    .preview { font-size: 55px; width: 100px; height: 100px; border-radius: 30px; }
+    #profileButton { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; }
     #toast {
       position: fixed;
       bottom: 25px;
@@ -186,22 +158,197 @@
       border-radius: 14px;
       background: #2b3857;
       box-shadow: 0 12px 50px #0008;
-      z-index: 20;
+      z-index: 40;
     }
-    #connection { color: var(--bad); font-size: 12px; margin-bottom: 10px; }
-    footer { padding: 28px 0; color: var(--muted); font-size: 12px; }
-    .player { position: relative; transition: transform .15s, background .15s; }
+    #connection { flex: none; color: var(--bad); font-size: 12px; margin-bottom: 8px; }
+
+    /* ---------- หน้าห้อง ---------- */
+    #roomPage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+    .room-top {
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 16px;
+      border-radius: 16px;
+    }
+    .room-id { min-width: 0; }
+    .room-id h2 { margin: 0 0 5px; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .room-time { flex: none; text-align: right; }
+    .room-time .muted { font-size: 13px; }
+    .timer { font-variant-numeric: tabular-nums; font-size: 25px; line-height: 1.1; font-weight: 800; }
+
+    .room-body { flex: 1; min-height: 0; display: grid; gap: 10px; }
+    .room-body[data-mode="lobby"] { grid-template-columns: minmax(300px, 370px) minmax(0, 1fr); }
+    .room-body[data-mode="game"] { grid-template-columns: minmax(230px, 290px) minmax(0, 1fr) minmax(280px, 340px); }
+    .room-body[data-mode="lobby"] .game-only { display: none !important; }
+    .room-body[data-mode="game"] .lobby-only { display: none !important; }
+    .room-body[data-mode="lobby"] #colC { display: none; }
+    .col { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+
+    .box { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 12px 14px; border-radius: 18px; }
+    .box-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .box-head h3 { margin: 0; }
+    .only-sheet, .only-mobile { display: none; }
+
+    /* หน้าห้องรอ: ตั้งค่า + แชทซ้าย / ปุ่มกับผู้เล่นขวา */
+    #settingsPanel { flex: 1 1 0; }
+    .room-body[data-mode="lobby"] #chatPanel { flex: 0 0 38%; }
+    .settings-body { display: none; flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+    .settings-summary { flex: 1; min-height: 0; overflow-y: auto; font-size: 13px; line-height: 1.6; }
+    .settings-summary p { margin: 0 0 6px; }
+    .settings-summary .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .settings-summary .badge { font-size: 11px; padding: 2px 8px; }
+    .settings-box.is-host .settings-body { display: block; }
+    .settings-box.is-host .settings-summary { display: none; }
+    .settings-box.is-host #settingsEdit { display: none; }
+    .settings-body form { display: grid; gap: 10px; }
+    .settings-body h3 { margin: 4px 0 0; font-size: 14px; }
+    .settings-body input, .settings-body select { padding: 8px 10px; }
+    .settings-body .grid3 { gap: 8px; }
+    .settings-body .roles-grid { grid-template-columns: 1fr; }
+    .settings-body label { font-size: 13px; }
+    .settings-body .check-row { font-size: 13px; }
+
+    .lobby-top { flex: none; gap: 10px; }
+    .lobby-actions { display: flex; gap: 8px; }
+    .lobby-actions button { flex: 1 1 0; padding: 12px 8px; font-size: 17px; white-space: nowrap; }
+    .lobby-actions #leaveRoom { flex: .55 1 0; }
+    .lobby-info { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .lobby-foot { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; min-height: 18px; }
+    .lobby-foot span:empty { display: none; }
+
+    /* เล่นเกม: บทบาท + รูปซ้าย / ผู้เล่นกลาง / แชทขวา */
+    #rolePanel { flex: 0 1 auto; max-height: 52%; overflow-y: auto; display: block; border-color: #7760ad; background: linear-gradient(140deg, #3e2b63, #15203b); }
+    .role-card .eyebrow { margin: 0 0 4px; font-size: 11px; letter-spacing: 3px; }
+    .role-card h2 { margin: 0 0 6px; font-size: 22px; }
+    .role-desc { margin: 0 0 6px; font-size: 13px; line-height: 1.55; color: #d8def2; }
+    .clue {
+      background: #0b1326;
+      border-left: 3px solid #c5a5ff;
+      padding: 9px 12px;
+      border-radius: 10px;
+      margin-top: 8px;
+    }
+    .clue small { display: block; font-size: 12px; }
+    .clue strong { display: block; font-size: 19px; margin: 3px 0; }
+    .art-box { flex: 1; min-height: 110px; position: relative; padding: 0; background: #0b1326; border-radius: 18px; overflow: hidden; }
+    .art-box img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
+    #roleArtInner { position: absolute; inset: 0; }
+    .ph {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      font-size: clamp(30px, 6vmin, 72px);
+      background: radial-gradient(circle at 50% 38%, #3e2b63, #0b1326 72%);
+    }
+    img.unk { filter: invert(1); object-fit: contain; }
+    .art-cap {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 22px 10px 10px; text-align: center; font-weight: 800; font-size: 17px;
+      background: linear-gradient(transparent, #000c);
+    }
+
+    #actionPanel, #resultPanel { flex: none; padding: 10px 14px; }
+    .action-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 12px; flex-wrap: wrap; }
+    .action-head h3 { margin: 0; }
+    .action-head p { margin: 0; font-size: 14px; }
+    .action-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+    .action-btns button { padding: 8px 14px; font-size: 14px; }
+    .help { display: block; margin-top: 6px; font-size: 12px; line-height: 1.5; }
+    #resultPanel h2 { margin: 0 0 4px; }
+    #resultPanel p { margin: 0 0 6px; }
+    #resultPanel details { font-size: 14px; }
+    #resultPanel details[open] { max-height: 20vh; overflow-y: auto; }
+
+    .players-box { flex: 1; }
+    .players-head { flex: none; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .players-head h3 { margin: 0; }
+    .players {
+      flex: 1; min-height: 0; overflow-y: auto;
+      display: grid; gap: 8px; align-content: start;
+      grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+      padding: 2px 4px 2px 2px;
+    }
+    .players-foot { flex: none; display: flex; justify-content: flex-end; margin-top: 8px; }
+    .players-foot button { padding: 9px 26px; font-size: 16px; }
+
+    .player {
+      position: relative;
+      display: flex; flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff05;
+      overflow: hidden;
+      text-align: center;
+      transition: transform .15s, background .15s;
+    }
+    .player.out { opacity: .55; }
+    .player.out .p-art img { filter: grayscale(1); }
+    .player.out .p-art img.unk { filter: invert(1) grayscale(1); }
+    .player.self { border-color: var(--accent); }
     .player.selectable { cursor: pointer; border-color: #6c58b8; }
     .player.selectable:hover { transform: translateY(-2px); background: #ffffff0d; }
     .player.selected { border-color: var(--good); box-shadow: 0 0 0 2px var(--good) inset; background: #55d9b214; }
-    .count-badge {
-      position: absolute; top: 8px; right: 8px;
-      min-width: 26px; height: 26px; padding: 0 7px; border-radius: 13px;
-      display: grid; place-items: center;
-      background: var(--bad); color: #1b0b10; font-weight: 800; font-size: 14px;
+    .p-art { position: relative; aspect-ratio: 3 / 4; background: #0b1326; }
+    .p-art > img, .p-art > .ph { width: 100%; height: 100%; object-fit: cover; object-position: center 22%; display: block; }
+    .p-avatar {
+      position: absolute; left: 6px; bottom: 6px;
+      width: 36px; height: 36px; margin: 0; font-size: 20px; border-radius: 12px;
+      border: 2px solid #0b1326;
     }
-    .pick-note { color: var(--good); }
-    #profileButton { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; }
+    .p-tags { position: absolute; top: 5px; left: 5px; display: flex; gap: 3px; flex-wrap: wrap; max-width: 70%; }
+    .p-tags .badge { padding: 1px 6px; font-size: 10px; background: #000a; }
+    .p-info { padding: 6px 6px 7px; min-width: 0; }
+    .p-name { font-weight: 700; font-size: 13px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .p-sub { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .p-sub.good { color: var(--good); }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; background: var(--good); vertical-align: middle; }
+    .dot.off { background: var(--bad); }
+    .player.lobby { padding: 12px 6px 8px; align-items: center; }
+    .player.lobby .avatar { width: 54px; height: 54px; font-size: 30px; margin: 0 0 7px; }
+    .player.lobby .p-tags { top: 4px; }
+    .player.lobby .p-info { padding: 0; width: 100%; }
+    .count-badge {
+      position: absolute; top: 5px; right: 5px; z-index: 1;
+      min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: var(--bad); color: #1b0b10; font-weight: 800; font-size: 13px;
+    }
+    .kick-button {
+      position: absolute; right: 5px; bottom: 5px; z-index: 1;
+      width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: 12px; line-height: 1;
+    }
+    .player.lobby .kick-button { top: 5px; bottom: auto; }
+
+    .chat-box { min-height: 0; }
+    #colC .chat-box { flex: 1; }
+    .chat-box .box-head small { font-size: 12px; margin-right: auto; margin-left: 4px; }
+    .chat-tabs { flex: none; display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+    .chat-tabs:empty { display: none; }
+    .chat-tabs button { font-size: 12px; padding: 6px 9px; }
+    .chat-tabs button.active { background: var(--accent); border-color: transparent; }
+    .chat-tabs button.fresh { border-color: var(--good); color: var(--good); }
+    .messages {
+      flex: 1; min-height: 0;
+      overflow-y: auto;
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 10px;
+      background: #0b1221;
+      border-radius: 12px;
+    }
+    .message { font-size: 14px; overflow-wrap: anywhere; }
+    .message b { color: #c6b0ff; }
+    .message.system { color: #95b4cd; font-size: 12px; }
+    .message.note { color: #c9d5ee; border-left: 2px solid #7760ad; padding-left: 8px; }
+    .message time { font-size: 10px; color: var(--muted); margin-left: 6px; }
+    .message p { margin: 3px 0 0; white-space: pre-wrap; line-height: 1.5; }
+    .chat-form { flex: none; display: flex; gap: 7px; margin-top: 8px; }
+    .chat-form input { min-width: 0; padding: 9px 11px; }
+    .chat-form button { padding: 9px 14px; }
+
+    #mobileBar { display: none; }
+
+    /* ---------- แจ้งเตือนกลางหน้าจอ ---------- */
     .announce-layer {
       position: fixed; inset: 0; z-index: 30;
       display: grid; place-items: center;
@@ -209,7 +356,7 @@
     }
     .announce-card {
       pointer-events: auto; cursor: pointer; text-align: center;
-      min-width: min(88vw, 360px); max-width: 92vw; padding: 28px 30px;
+      min-width: min(88vw, 360px); max-width: 92vw; padding: 24px 28px;
       border-radius: 24px; border: 1px solid #5b4a9a;
       background: linear-gradient(145deg, #1d2744, #121a2d);
       box-shadow: 0 20px 80px #000a;
@@ -227,23 +374,142 @@
       from { opacity: 0; transform: scale(.85) translateY(12px); }
       to { opacity: 1; transform: none; }
     }
-    .avatar { overflow: hidden; }
-    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .kick-button { width: 100%; margin-top: 8px; padding: 6px 10px; font-size: 12px; }
-    @media (max-width: 850px) {
-      .game-layout { grid-template-columns: 1fr; }
-      .chat-panel { position: static; }
-      .grid3 { grid-template-columns: 1fr; }
-      .menu { min-height: 110px; }
-      .messages { height: 300px; }
+
+    @media (max-height: 560px) {
+      .room-body[data-mode="game"] #roleArt { display: none; }
     }
-    @media (max-width: 540px) {
+
+    /* ---------- มือถือ / จอแคบ ---------- */
+    @media (max-width: 860px) {
+      .shell, body.in-room .shell { width: 100%; padding: 0 8px; }
+      body.in-room .shell { padding: 6px 8px; }
+      header { padding: 8px 0; }
+      .grid3 { grid-template-columns: 1fr; }
       .grid2 { grid-template-columns: 1fr; }
-      .panel { padding: 17px; border-radius: 17px; }
-      header { align-items: flex-start; }
-      .brand { font-size: 14px; }
-      .hero { min-height: 250px; }
-      .players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .home-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .hero { padding: 14px 0 12px; }
+      .menu { min-height: 100px; padding: 14px; }
+      .menu b { font-size: 18px; }
+      .panel { padding: 16px; border-radius: 16px; }
+      .box { padding: 9px 10px; border-radius: 14px; }
+      .room-top { padding: 6px 12px; }
+      .room-id h2 { font-size: 16px; margin-bottom: 3px; }
+      .timer { font-size: 21px; }
+
+      .col { display: contents; }
+      .only-mobile { display: inline-block; }
+      .room-body { gap: 8px; }
+
+      .room-body[data-mode="lobby"] {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 36%) minmax(0, 1fr);
+        grid-template-areas: "controls controls" "settings chat" "players players";
+      }
+      .room-body[data-mode="game"] {
+        grid-template-columns: minmax(78px, 24%) minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(150px, 1fr) auto;
+        grid-template-areas: "role role" "action action" "players players" "art bar";
+      }
+      #lobbyControls { grid-area: controls; }
+      #settingsPanel { grid-area: settings; }
+      .room-body[data-mode="lobby"] #chatPanel { grid-area: chat; flex: none; }
+      #rolePanel { grid-area: role; max-height: 30vh; }
+      #actionPanel, #resultPanel { grid-area: action; }
+      #playersBox { grid-area: players; }
+      #roleArt { grid-area: art; min-height: 0; flex: none; aspect-ratio: 3 / 4; align-self: end; border-radius: 12px; }
+      .art-cap { font-size: 11px; padding: 12px 4px 4px; }
+      #mobileBar { grid-area: bar; display: flex; gap: 8px; align-items: stretch; }
+      #mobileBar button { flex: 1; font-size: 15px; padding: 8px; }
+      .players-foot { display: none; }
+
+      .lobby-actions button { padding: 10px 6px; font-size: 15px; }
+      .lobby-info .badge { font-size: 11px; padding: 2px 8px; }
+      .lobby-foot { font-size: 12px; }
+      .box-head { margin-bottom: 5px; }
+      .box-head h3 { font-size: 14px; }
+      .chat-box .box-head small { display: none; }
+      .chat-form input { padding: 7px 8px; font-size: 14px; }
+      .chat-form button { padding: 7px 10px; font-size: 13px; }
+      .messages { padding: 7px; gap: 8px; }
+      .message { font-size: 13px; }
+      .settings-summary { font-size: 12px; }
+
+      .role-card .eyebrow { display: none; }
+      .role-card h2 { font-size: 17px; margin-bottom: 2px; }
+      .role-desc { font-size: 12px; margin-bottom: 2px; }
+      .role-card:not(.expanded) .role-desc {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      }
+      .clue { padding: 6px 10px; margin-top: 5px; }
+      .clue strong { font-size: 16px; margin: 1px 0; }
+      .clue small:last-child { display: none; }
+      #actionPanel, #resultPanel { padding: 8px 12px; }
+      .help {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        font-size: 11px; margin-top: 4px;
+      }
+      .action-btns { margin-top: 6px; }
+      .action-btns button { padding: 6px 12px; font-size: 13px; }
+
+      .players { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0; }
+      .players[data-count="1"], .players[data-count="2"], .players[data-count="3"],
+      .players[data-count="4"], .players[data-count="5"], .players[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .p-art { aspect-ratio: 3 / 4.4; }
+      .player.lobby .p-art { aspect-ratio: auto; }
+      .p-avatar { width: 26px; height: 26px; font-size: 15px; border-radius: 9px; left: 4px; bottom: 4px; }
+      .p-tags { top: 3px; left: 3px; }
+      .p-tags .badge { font-size: 9px; padding: 0 4px; }
+      .p-info { padding: 6px 4px 7px; }
+      .p-name { font-size: 12px; }
+      .p-sub { font-size: 10.5px; }
+      .count-badge { min-width: 20px; height: 20px; font-size: 11px; top: 3px; right: 3px; }
+      .kick-button { width: 20px; height: 20px; font-size: 10px; right: 3px; bottom: 3px; }
+      .player.lobby { padding: 8px 3px 6px; }
+      .player.lobby .avatar { width: 40px; height: 40px; font-size: 22px; margin-bottom: 4px; }
+
+      /* หน้าต่างแก้ตั้งค่าเต็มจอบนมือถือ */
+      .settings-box.is-host .settings-body { display: none; }
+      .settings-box.is-host .settings-summary { display: block; }
+      .settings-box.is-host #settingsEdit { display: inline-block; }
+      .settings-box.open {
+        position: fixed; inset: 8px; z-index: 25; padding: 14px;
+        box-shadow: 0 0 0 100vmax #000b;
+      }
+      .settings-box.open .settings-body { display: block; }
+      .settings-box.open .settings-summary { display: none; }
+      .settings-box.open #settingsEdit { display: none; }
+      .settings-box.open #settingsClose { display: inline-block; }
+      .settings-box.open .settings-body .grid2 { grid-template-columns: 1fr 1fr; }
+      .settings-box.open .settings-body .grid3 { grid-template-columns: repeat(3, 1fr); }
+      .settings-box.open .settings-body input, .settings-box.open .settings-body select { font-size: 16px; }
+
+      /* แชทเป็นแผ่นเลื่อนขึ้นมาตอนเล่นเกม */
+      .room-body[data-mode="game"] #chatPanel { display: none; }
+      .room-body[data-mode="game"].chat-open #chatPanel {
+        display: flex; position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 22;
+        height: min(66dvh, 540px); padding: 12px;
+        box-shadow: 0 0 0 100vmax #000a;
+      }
+      .room-body[data-mode="game"].chat-open #chatClose { display: inline-block; }
+      .room-body[data-mode="game"].chat-open .chat-box .box-head small { display: inline; }
+      .room-body[data-mode="game"].chat-open .chat-form input { font-size: 16px; }
+    }
+
+    /* จอมือถือเตี้ย: ย่อบทบาท/คำอธิบายเพื่อเก็บที่ให้การ์ดผู้เล่น */
+    @media (max-width: 860px) and (max-height: 720px) {
+      .role-card:not(.expanded) .role-desc { display: none; }
+      .help { display: none; }
+      .clue small:first-child { display: none; }
+      .role-card h2 { font-size: 16px; }
+      .action-head h3 { font-size: 14px; }
+      .room-top { padding: 4px 10px; }
+      .room-top .row { display: none; }
+      .room-id h2 { margin: 0; }
+    }
+
+    @media (max-width: 380px) {
+      .lobby-actions button { font-size: 14px; }
+      .players { gap: 4px; }
     }
   </style>
 </head>
@@ -272,7 +538,7 @@
           <p>เข้าห้องหรือสร้างห้องใหม่ แตะชื่อของคุณมุมขวาบนเพื่อเปลี่ยนชื่อและรูป</p>
         </div>
 
-        <div class="grid2">
+        <div class="grid2 home-grid">
           <button class="panel menu" data-page="browsePage">
             <span class="menu-icon">🌙</span>
             <b>เข้าห้อง</b>
@@ -286,7 +552,7 @@
 
       <section id="browsePage" hidden>
         <div class="row between">
-          <h2>หาห้อง</h2>
+          <h2 style="margin:0">หาห้อง</h2>
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
@@ -310,11 +576,11 @@
 
       <section id="createPage" hidden>
         <div class="row between">
-          <h2>สร้างห้อง</h2>
+          <h2 style="margin:0">สร้างห้อง</h2>
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
-        <div id="modePicker" class="grid2">
+        <div id="modePicker" class="grid2 home-grid">
           <button type="button" class="panel menu" data-mode="normal">
             <span class="menu-icon">🐺</span>
             <b>ธรรมดา</b>
@@ -357,9 +623,9 @@
 
           <small>ปัดลง อย่างน้อย 1 ตัว และต้องไม่ถึงครึ่งของผู้เล่น</small>
 
-          <div id="createRoles" class="stack"></div>
+          <div id="createRoles" class="stack" style="gap:8px"></div>
 
-          <div class="grid3" style="margin-top:10px">
+          <div class="grid3">
             <label>กลางคืน (วินาที)<input name="nightSeconds" type="number" min="15" max="600" value="45" required></label>
             <label>คุยกลางวัน (วินาที)<input name="daySeconds" type="number" min="15" max="600" value="90" required></label>
             <label>โหวต (วินาที)<input name="voteSeconds" type="number" min="15" max="600" value="30" required></label>
@@ -371,11 +637,11 @@
 
       <section id="avatarPage" hidden>
         <div class="row between">
-          <h2>ชื่อและรูปตัวเอง</h2>
+          <h2 style="margin:0">ชื่อและรูปตัวเอง</h2>
           <button class="secondary" data-page="homePage">กลับ</button>
         </div>
 
-        <form id="profileForm" class="panel stack">
+        <form id="profileForm" class="panel stack" style="gap:10px">
           <label>
             ชื่อของคุณ
             <input id="nameInput" minlength="3" maxlength="24" autocomplete="off" required>
@@ -384,76 +650,110 @@
             <button id="randomName" class="secondary" type="button">🎲 สุ่มชื่อ</button>
           </div>
           <small>ชื่อห้ามซ้ำกับคนอื่น และเปลี่ยนระหว่างเล่นเกมไม่ได้ ต้องกดบันทึกด้านล่างเพื่อให้มีผล</small>
-          <div id="avatarPreview" class="avatar preview"></div>
           <div class="row">
+            <div id="avatarPreview" class="avatar preview" style="margin:0"></div>
             <button id="photoPick" class="secondary" type="button">📷 อัปโหลดรูป</button>
             <button id="photoClear" class="secondary" type="button">ลบรูป</button>
             <input id="photoInput" type="file" accept="image/*" hidden>
           </div>
-          <h3>ตัวละคร</h3>
+          <h3 style="margin:0">ตัวละคร</h3>
           <div id="avatarChoices" class="avatar-choices"></div>
-          <h3>สี</h3>
+          <h3 style="margin:0">สี</h3>
           <div id="colorChoices" class="color-choices"></div>
           <button>บันทึก</button>
         </form>
       </section>
 
       <section id="roomPage" hidden>
-        <div class="panel row between" style="margin-bottom:18px">
-          <div>
-            <h2 id="roomTitle" style="margin-bottom:8px"></h2>
-            <div class="row">
+        <div class="panel room-top">
+          <div class="room-id">
+            <h2 id="roomTitle"></h2>
+            <div class="row" style="gap:6px">
               <span id="roomCode" class="badge"></span>
               <span id="roomVisibility" class="badge"></span>
-              <button id="copyCode" class="secondary" type="button">คัดลอกเลข</button>
+              <button id="copyCode" class="secondary sm" type="button">คัดลอกเลข</button>
             </div>
           </div>
-          <div style="text-align:right">
+          <div class="room-time">
             <div id="phaseLabel" class="muted"></div>
             <div id="countdown" class="timer">—</div>
           </div>
         </div>
 
-        <div class="game-layout">
-          <div class="stack">
-            <div id="lobbyControls" class="panel stack"></div>
-            <div id="settingsPanel" class="panel" hidden></div>
-            <div id="rolePanel" class="panel role-card" hidden></div>
-            <div id="actionPanel" class="panel" hidden></div>
-            <div id="resultPanel" class="panel" hidden></div>
+        <div id="roomBody" class="room-body" data-mode="lobby">
+          <div id="colA" class="col">
+            <!-- ห้องรอ: ตั้งค่า -->
+            <div id="settingsPanel" class="panel box settings-box lobby-only">
+              <div class="box-head">
+                <h3>ตั้งค่า</h3>
+                <button id="settingsEdit" class="secondary sm only-mobile" type="button">แก้ไข</button>
+                <button id="settingsClose" class="secondary sm only-sheet" type="button">✕ ปิด</button>
+              </div>
+              <div id="settingsSummary" class="settings-summary"></div>
+              <div id="settingsBody" class="settings-body"></div>
+            </div>
 
-            <div class="panel">
-              <div class="row between">
+            <!-- เล่นเกม: บทบาท + รูปบทบาท -->
+            <div id="rolePanel" class="panel role-card box game-only"></div>
+            <div id="roleArt" class="panel art-box game-only">
+              <div id="roleArtInner"></div>
+              <div id="roleCap" class="art-cap"></div>
+            </div>
+          </div>
+
+          <div id="colB" class="col">
+            <div id="lobbyControls" class="panel box lobby-top lobby-only">
+              <div class="lobby-actions">
+                <button id="readyButton" class="success" type="button">พร้อม</button>
+                <button id="startButton" type="button">เริ่มเกม</button>
+                <button id="leaveRoom" class="secondary js-leave" type="button">ออก</button>
+              </div>
+              <div id="lobbyInfo" class="lobby-info"></div>
+              <div class="lobby-foot">
+                <span id="lobbyNeed" class="bad"></span>
+                <span id="lobbyNotReady" class="bad"></span>
+              </div>
+            </div>
+
+            <div id="actionPanel" class="panel box game-only" hidden></div>
+            <div id="resultPanel" class="panel box game-only" hidden></div>
+
+            <div id="playersBox" class="panel box players-box">
+              <div class="players-head">
                 <h3>ผู้เล่น</h3>
                 <span id="playerCount" class="badge"></span>
               </div>
               <div id="players" class="players"></div>
+              <div class="players-foot game-only">
+                <button id="leaveRoomGame" class="secondary js-leave" type="button">ออก</button>
+              </div>
             </div>
-
-            <div id="notesPanel" class="panel" hidden>
-              <h3>โน้ตลับของคุณ</h3>
-              <ul id="notes" class="notes"></ul>
-            </div>
-
-            <button id="leaveRoom" class="secondary">ออกจากห้อง</button>
           </div>
 
-          <aside class="panel chat-panel">
-            <h3>แชท</h3>
-            <small id="chatStatus"></small>
-            <div id="chatTabs" class="chat-tabs"></div>
-            <div id="messages" class="messages" aria-live="polite"></div>
+          <div id="colC" class="col">
+            <aside id="chatPanel" class="panel box chat-box">
+              <div class="box-head">
+                <h3>แชท</h3>
+                <small id="chatStatus"></small>
+                <button id="chatClose" class="secondary sm only-sheet" type="button">✕ ปิด</button>
+              </div>
+              <div id="chatTabs" class="chat-tabs"></div>
+              <div id="messages" class="messages" aria-live="polite"></div>
 
-            <form id="chatForm" class="chat-form">
-              <input id="chatInput" maxlength="300" placeholder="พิมพ์ข้อความ..." autocomplete="off">
-              <button id="chatSend">ส่ง</button>
-            </form>
-          </aside>
+              <form id="chatForm" class="chat-form">
+                <input id="chatInput" maxlength="300" placeholder="พิมพ์ข้อความ..." autocomplete="off">
+                <button id="chatSend">ส่ง</button>
+              </form>
+            </aside>
+          </div>
+
+          <div id="mobileBar" class="game-only">
+            <button id="chatToggle" class="secondary" type="button">💬 แชท</button>
+            <button id="leaveRoomBar" class="secondary js-leave" type="button">ออก</button>
+          </div>
         </div>
       </section>
     </main>
-
-    <footer>DragoWereWolf</footer>
   </div>
 
   <div id="toast" role="status" hidden></div>
