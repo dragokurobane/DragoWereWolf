@@ -454,13 +454,22 @@
       .players { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0; }
       .players[data-count="1"], .players[data-count="2"], .players[data-count="3"],
       .players[data-count="4"], .players[data-count="5"], .players[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-      .p-art { aspect-ratio: 3 / 4.4; }
+      .player:not(.lobby) { border-radius: 12px; }
+      .players { grid-auto-rows: max-content; }
+      .p-art { aspect-ratio: 3 / 3.8; }
+      .p-art > img, .p-art > .ph { position: absolute; inset: 0; }
+      body.in-game .room-top .row { display: none; }
+      body.in-game .room-id h2 { margin: 0; }
+      body.in-game .help { display: none; }
+      .p-sub { white-space: nowrap; }
       .player.lobby .p-art { aspect-ratio: auto; }
-      .p-avatar { width: 26px; height: 26px; font-size: 15px; border-radius: 9px; left: 4px; bottom: 4px; }
+      .p-avatar { width: 32px; height: 32px; font-size: 18px; border-radius: 10px; left: 50%; transform: translateX(-50%); bottom: -2px; border-width: 2px; border-bottom: 0; border-radius: 10px 10px 0 0; }
+      .player.lobby .p-avatar { position: static; transform: none; width: 40px; height: 40px; border-radius: 13px; border-width: 0; }
       .p-tags { top: 3px; left: 3px; }
       .p-tags .badge { font-size: 9px; padding: 0 4px; }
-      .p-info { padding: 6px 4px 7px; }
-      .p-name { font-size: 12px; }
+      .p-info { padding: 4px 3px 6px; background: #0b1326; }
+      .player.lobby .p-info { background: none; }
+      .p-name { font-size: 12px; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
       .p-sub { font-size: 10.5px; }
       .count-badge { min-width: 20px; height: 20px; font-size: 11px; top: 3px; right: 3px; }
       .kick-button { width: 20px; height: 20px; font-size: 10px; right: 3px; bottom: 3px; }
