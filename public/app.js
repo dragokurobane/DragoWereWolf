@@ -377,6 +377,7 @@ function connect() {
       actionKey = "";
       lastMessagesKey = "";
       lastMode = "";
+      document.body.classList.remove("in-game");
       $("#roomBody").classList.remove("chat-open");
       $("#settingsPanel").classList.remove("open");
       clearAnnounce();
@@ -621,6 +622,7 @@ document.addEventListener("keydown", event => {
 
 function renderRoom() {
   const lobby = room.phase === "lobby";
+  document.body.classList.toggle("in-game", !lobby);
   const body = $("#roomBody");
   body.dataset.mode = lobby ? "lobby" : "game";
   if (lobby) body.classList.remove("chat-open");
