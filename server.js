@@ -45,12 +45,12 @@ const ROLE_NAMES = {
   sheriff: "นายอำเภอ",
   doctor: "หมอ",
   seer: "ผู้หยั่งรู้",
-  cupid: "ผู้ผูกคู่รัก",
+  cupid: "คิวปิด",
   knight: "อัศวิน",
   police: "ตำรวจ",
   loneWolf: "หมาป่าเดียวดาย",
-  hybrid: "ลูกครึ่ง",
-  alpha: "จ่าฝูง",
+  hybrid: "หมาป่าลูกครึ่ง",
+  alpha: "หมาป่าจ่าฝูง",
   priest: "นักบวช",
   jester: "ตัวตลก",
   pet: "สัตว์เลี้ยง",
@@ -60,37 +60,45 @@ const ROLE_NAMES = {
   cosplayer: "นักคอสเพลย์",
   hunter: "นายพราน",
   witchDoctor: "หมอผี",
-  thief: "โจร"
+  thief: "โจร",
+  transformer: "ทรานส์ฟอร์มเมอร์",
+  godzilla: "ก็อตซิลล่า",
+  lizard: "กิ่งก่า"
 };
 
 const ROLE_DESCRIPTIONS = {
-  villager: "ได้รับคำเดียวกับชาวบ้านคนอื่น ใช้คำนี้ใบ้กันโดยไม่พูดตรง ๆ เพื่อหาคนที่ไม่รู้คำ (หมาป่า)",
-  wolf: "ไม่ได้รับคำของชาวบ้าน ต้องแกล้งทำเป็นรู้ และร่วมกับฝูงเลือกเป้าหมายตอนกลางคืน",
-  sheriff: "คะแนนโหวตกลางวันมีน้ำหนัก 2 คะแนน",
+  villager: "จะได้รับรหัสลับในทุกๆ วันใช้มันเพื่อเพื่อหาตัวหมาป่าซะ",
+  wolf: "กำจัดชาวบ้านทั้งหมดเพื่อชนะ",
+  sheriff: "คะแนนโหวตนับ 2 คะแนน",
   doctor: "ปกป้องหนึ่งคนต่อคืน แต่เลือกคนเดิมติดกันไม่ได้",
-  seer: "ตรวจหนึ่งคนต่อคืนและเห็นบทบาทของคนนั้น แต่ลูกครึ่งจะแสดงเป็นชาวบ้าน และนักคอสเพลย์จะแสดงเป็นหมาป่า",
-  cupid: "คืนแรกเลือกผู้เล่นสองคนเป็นคู่รัก รวมตัวเองได้",
+  seer: "ทำนาย บทบาท ของผู้อื่นในตอนกลางคืน",
+  cupid: "ทำให้คนสองคนรักกัน",
   knight: "ปกป้องหนึ่งคนต่อคืน พลังหมดเมื่อช่วยสำเร็จ",
-  police: "จัดการเป้าหมายได้ 1 ครั้ง หากเลือกฝ่ายชาวบ้านจะออกจากเกมด้วย (หมาป่าและฝ่ายเป็นกลางไม่เป็นไร)",
-  loneWolf: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน ไม่รู้ว่าใครเป็นพวกเดียวกัน และไม่มีแชทหมาป่า",
-  hybrid: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน แต่ผู้หยั่งรู้จะตรวจคุณเป็นชาวบ้าน",
-  alpha: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน คะแนนเลือกเป้าหมายกลางคืนมีน้ำหนัก 2",
-  priest: "คืนชีพผู้เล่นที่ออกจากเกมได้ 1 ครั้ง",
-  jester: "ไม่มีฝ่าย หากถูกโหวตออกตอนกลางวันจะชนะทันที",
-  pet: "รู้จักมาดาม หากมาดามถูกจัดการ คุณจะรู้ข้อมูลผู้ลงมือ",
-  owner: "รู้จักสัตว์เลี้ยง หากสัตว์เลี้ยงถูกจัดการ คุณจะรู้ข้อมูลผู้ลงมือ",
-  psycho: "ไม่มีฝ่าย หากถูกฆ่าตอนกลางคืนคุณจะชนะทันที",
-  spyWolf: "อยู่ฝ่ายหมาป่า และรู้คำของชาวบ้าน",
-  cosplayer: "อยู่ฝ่ายชาวบ้าน แต่หมาป่าจะเห็นคุณเป็นพวกเดียวกัน และผู้หยั่งรู้จะเห็นคุณเป็นหมาป่า",
-  hunter: "เลือกหนึ่งคนทุกคืน หากคนนั้นถูกหมาป่าฆ่า เขาจะไม่ตาย และหมาป่าที่ลงมือจะตายแทน (สุ่ม 1 ตัว)",
-  witchDoctor: "ไม่มีฝ่ายในตอนแรก หากถูกหมาป่าฆ่าจะไม่ตาย แต่กลายเป็นหมาป่าแทน",
-  thief: "เลือกหนึ่งคนทุกคืน โหวตของคนนั้นในวันถัดไปจะเป็นโมฆะ และคะแนนโหวตของคุณเพิ่มขึ้น 1",
-  unknown: "โหมดไม่รู้บทบาท: คุณไม่รู้ว่าตัวเองเป็นอะไร เลือกเป้าหมายได้ทุกคืน ถ้าบทบาทของคุณไม่มีผล ก็ไม่เกิดอะไรขึ้น"
+  police: "ใช้ปืนของคุณกำจัดคนที่หน้าสงสัย",
+  loneWolf: "คุณไม่อยากอยู่กับฝูงของตัวเอง",
+  hybrid: "ผู้หยั่งรู้จะทำนายว่า คุณเป็นชาวบ้าน",
+  alpha: "คะแนนโหวตนับ 2 คะแนน",
+  priest: "คืนชีพคนตายได้ 1 ครั้ง",
+  jester: "หากถูกโหวตออก จะชนะทันที",
+  pet: "มีเจ้าของ ถ้ามีใครมาทำอะไรกับเจ้าของจะรู้ทันที",
+  owner: "มีสัตว์เลี้ยงคู่ใจ ถ้ามีใครมาทำอะไรกับสัตว์เลี้ยงจะรู้ทันที",
+  psycho: "คุณต้องการความตาย จากหมาป่า เพื่อชนะ",
+  spyWolf: "หมาป่าที่สืบหาข้อมูล แล้วรู้รหัสลับของชาวบ้าน",
+  cosplayer: "หมาป่าจะเห็นคุณเป็นพวกเดียวกัน",
+  hunter: "ปกป้องหนึ่งคนในตอนกลางคืน ถ้าหมาป่าจะฆ่าคนที่ปกป้องจะกำจัดหมาป่าทันที",
+  witchDoctor: "หากถูกหมาป่าฆ่าจะกลายเป็นหมาป่า",
+  thief: "ขโมยคะแนนโหวตของผู้อื่น เอามาเป็นของตน",
+  transformer: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน หากคุณถูกโหวตออก ฝั่งชาวบ้านจะใช้ความสามารถไม่ได้อีกเลย",
+  godzilla: "ไม่มีฝ่าย ตั้งแต่เช้าวันที่ 2 เลือกกำจัดผู้เล่นได้วันละ 1 คน ชนะเมื่อเหลือรอดคนเดียว ระหว่างที่คุณยังอยู่ ไม่มีฝ่ายไหนชนะ",
+  lizard: "อยู่ฝ่ายหมาป่า ไม่ได้รับคำของชาวบ้าน ตอนกลางวันเลือกเลียนแบบบทบาทของผู้เล่นได้วันละ 1 ครั้ง ผู้หยั่งรู้จะเห็นคุณเป็นบทบาทที่เลียนแบบ",
+  unknown: "โหมดไม่รู้บทบาท: คุณจะไม่มีวันรู้ว่าตัวเองเป็นอะไร จนกว่าจะจบเกม"
 };
 
-const WOLF_ROLES = new Set(["wolf", "loneWolf", "hybrid", "alpha", "spyWolf"]);
-const SPECIAL_WOLF_ROLES = ["loneWolf", "hybrid", "alpha", "spyWolf"];
-const NEUTRAL_ROLES = ["jester", "psycho", "witchDoctor"];
+const WOLF_ROLES = new Set(["wolf", "loneWolf", "hybrid", "alpha", "spyWolf", "transformer", "lizard"]);
+const SPECIAL_WOLF_ROLES = ["loneWolf", "hybrid", "alpha", "spyWolf", "transformer", "lizard"];
+const NEUTRAL_ROLES = ["jester", "psycho", "witchDoctor", "godzilla"];
+// บทบาทที่ต้องรู้ตัวเองก่อนถึงจะใช้ความสามารถได้ ใช้ในโหมดไม่รู้จักตัวเองไม่ได้
+const BLIND_BLOCKED = ["cupid", "priest", "godzilla", "lizard"];
 const VILLAGE_SPECIAL_ROLES = [
   "sheriff",
   "doctor",
@@ -240,7 +248,13 @@ function announceDeaths(room, title, opts = {}) {
   });
 }
 
+// ทรานส์ฟอร์มเมอร์ถูกโหวตออกแล้ว: ฝั่งชาวบ้านใช้ความสามารถไม่ได้
+function isSealed(room, player) {
+  return Boolean(room.villageSealed && factionOf(player) === "village");
+}
+
 function voteWeight(room, p) {
+  if (isSealed(room, p)) return 1;
   // โจรขโมยโหวตของคนนี้ไป → โหวตของคนนี้ไม่นับ
   if (room.players.some(t => t.alive && t.role === "thief" && t.stealFrom === p.id)) return 0;
   let weight = p.role === "sheriff" ? 2 : 1;
@@ -271,6 +285,7 @@ function validNightTarget(room, player, targetId) {
 function canActTonight(room, player) {
   if (!player.alive) return false;
   if (player.blind) return true;
+  if (isSealed(room, player)) return false;
   if (isWolf(player)) return true;
   switch (player.role) {
     case "doctor":
@@ -380,18 +395,18 @@ function planRoles(room, random = false) {
   const blind = Boolean(room.settings.blind);
   const order = list => (random ? shuffle(list) : list);
 
-  const wolfPool = SPECIAL_WOLF_ROLES.filter(r => room.settings.roles[r]);
+  const wolfPool = SPECIAL_WOLF_ROLES.filter(r => room.settings.roles[r] && !(blind && BLIND_BLOCKED.includes(r)));
   const wolfSpecials = order(wolfPool).slice(0, wolves);
 
   // แต่ละหน่วยคือบทบาทที่ต้องลงไปพร้อมกัน (สัตว์เลี้ยง+มาดามต้องมาเป็นคู่)
   const units = [];
   for (const role of VILLAGE_SPECIAL_ROLES) {
     if (!room.settings.roles[role] || role === "owner") continue;
-    if (blind && (role === "cupid" || role === "priest")) continue; // ใช้ในโหมดไม่รู้บทบาทไม่ได้
+    if (blind && BLIND_BLOCKED.includes(role)) continue; // ใช้ในโหมดไม่รู้บทบาทไม่ได้
     units.push(role === "pet" ? ["pet", "owner"] : [role]);
   }
   for (const role of NEUTRAL_ROLES) {
-    if (room.settings.roles[role]) units.push([role]);
+    if (room.settings.roles[role] && !(blind && BLIND_BLOCKED.includes(role))) units.push([role]);
   }
 
   // เหลือที่ไว้ให้ชาวบ้านธรรมดาอย่างน้อย 1 คนเสมอ
@@ -486,6 +501,7 @@ function snapshot(room, userId) {
     round: room.round,
     endsAt: room.endsAt,
     winner: room.winner,
+    sealed: Boolean(room.villageSealed),
     plan: planRoles(room),
     clueHistory: room.phase === "ended" ? room.clueHistory : [],
     players: room.players.map(player => {
@@ -529,6 +545,9 @@ function snapshot(room, userId) {
       knightUsed: hidden ? false : me.knightUsed,
       policeUsed: hidden ? false : me.policeUsed,
       priestUsed: hidden ? false : me.priestUsed,
+      sealed: hidden ? false : isSealed(room, me),
+      dayUsed: me.dayUsed === room.round,
+      mimicName: me.role === "lizard" && me.mimicRole ? ROLE_NAMES[me.mimicRole] : null,
       choice: room.phase === "night" ? (room.actions[me.id] ?? null) : null,
       vote: room.phase === "vote" ? (room.votes[me.id] ?? null) : null
     },
@@ -634,6 +653,8 @@ function newPlayer(id) {
     priestUsed: false,
     lastChatAt: 0,
     stealFrom: null,
+    mimicRole: null,
+    dayUsed: 0,
     blind: false,
     offlineAt: null
   };
@@ -716,15 +737,15 @@ function makeClues(room) {
 
   room.clueHistory.push({
     round: room.round,
-    sentence: `คำของฝั่งชาวบ้านคือ "${word}" (หมาป่าไม่ได้รับคำ)`
+    sentence: `รหัสลับ "${word}"`
   });
 
   for (const p of alivePlayers(room)) {
     if (room.settings.blind) p.clue = null; // ได้รับคำจะรู้ทันทีว่าไม่ใช่หมาป่า
-    else if (p.role === "spyWolf") p.clue = { round: room.round, type: "คำของฝั่งชาวบ้าน (คุณเป็นสายลับ)", text: word };
+    else if (p.role === "spyWolf") p.clue = { round: room.round, type: "รหัสลับคือ", text: word };
     else p.clue = isWolf(p)
       ? null
-      : { round: room.round, type: "คำของฝั่งชาวบ้าน (ทุกคนได้คำเดียวกัน)", text: word };
+      : { round: room.round, type: "รหัสลับของฝั่งชาวบ้าน", text: word };
   }
 }
 
@@ -765,6 +786,13 @@ function checkWin(room) {
     finish(room, "คู่รักชนะ");
     return true;
   }
+
+  // ก็อตซิลล่า: เหลือรอดคนเดียวคือชนะ และระหว่างที่ยังอยู่ ฝ่ายอื่นยังชนะไม่ได้
+  if (alive.length === 1 && alive[0].role === "godzilla") {
+    finish(room, `ก็อตซิลล่าชนะ — ${getUser(alive[0].id).name} กำจัดทุกคนจนเหลือรอดคนเดียว`);
+    return true;
+  }
+  if (alive.some(p => p.role === "godzilla")) return false;
 
   const wolves = alive.filter(isWolf).length;
   const others = alive.length - wolves;
@@ -850,6 +878,11 @@ function resolveNight(room) {
   const actors = alivePlayers(room);
   const aliveBefore = new Set(actors.map(p => p.id));
 
+  // ผนึกชาวบ้าน: การเลือกของฝั่งชาวบ้านไม่มีผล (โหมดไม่รู้จักตัวเองจะไม่บอกผู้เล่นว่าถูกผนึก)
+  if (room.villageSealed) {
+    for (const p of actors) if (isSealed(room, p)) delete room.actions[p.id];
+  }
+
   if (room.settings.blind) {
     for (const p of actors) {
       const v = room.actions[p.id];
@@ -889,7 +922,8 @@ function resolveNight(room) {
   for (const seer of actors.filter(p => p.role === "seer")) {
     const target = room.players.find(p => p.id === room.actions[seer.id]);
     if (!target) continue;
-    const shown = target.role === "hybrid" ? "villager" : target.role === "cosplayer" ? "wolf" : target.role;
+    const look = role => (role === "hybrid" ? "villager" : role === "cosplayer" ? "wolf" : role);
+    const shown = look(target.role === "lizard" && target.mimicRole ? target.mimicRole : target.role);
     personal(seer, `คืน ${room.round}: ${getUser(target.id).name} คือ ${ROLE_NAMES[shown]}`);
   }
 
@@ -1045,6 +1079,12 @@ function resolveVote(room) {
     const killerIds = voters.filter(p => room.votes[p.id] === target.id).map(p => p.id);
     eliminate(room, target, "มติของหมู่บ้าน", killerIds);
     announceDeaths(room, "ถูกโหวตออก", { kind: "vote", text: `ได้ ${scores.get(target.id)} คะแนน` });
+
+    if (target.role === "transformer" && !room.villageSealed) {
+      room.villageSealed = true;
+      message(room, "public", "ทรานส์ฟอร์มเมอร์ถูกโหวตออก — ฝั่งชาวบ้านใช้ความสามารถไม่ได้อีกต่อไป");
+      announce(room, { kind: "vote", title: "ฝั่งชาวบ้านถูกผนึกพลัง", text: "ทรานส์ฟอร์มเมอร์ถูกโหวตออก ชาวบ้านใช้ความสามารถไม่ได้อีกต่อไป", players: [] });
+    }
 
     if (target.role === "jester") {
       finish(room, `ตัวตลกชนะ — ${getUser(target.id).name} ถูกโหวตออกสำเร็จ`);
@@ -1292,6 +1332,7 @@ io.on("connection", socket => {
     room.clueHistory = [];
     room.wordPool = null;
     room.pendingDeaths = [];
+    room.villageSealed = false;
     beginDay(room);
   });
 
@@ -1327,6 +1368,7 @@ io.on("connection", socket => {
     room.messages = [];
     room.clueHistory = [];
     room.wordPool = null;
+    room.villageSealed = false;
 
     message(room, "public", "กลับสู่ห้องรอ กดพร้อมเพื่อเล่นรอบใหม่");
     sync(room);
@@ -1343,6 +1385,7 @@ io.on("connection", socket => {
       if (player.role === "knight" && player.knightUsed) throw new Error("พลังอัศวินหมดแล้ว");
       if (player.role === "police" && player.policeUsed) throw new Error("ตำรวจใช้ความสามารถไปแล้ว");
       if (player.role === "priest" && player.priestUsed) throw new Error("คุณใช้การคืนชีพไปแล้ว");
+      if (isSealed(room, player)) throw new Error("ความสามารถของฝั่งชาวบ้านถูกผนึกแล้ว");
       if (!canActTonight(room, player)) throw new Error("คืนนี้คุณไม่มีความสามารถที่ใช้ได้");
     }
 
@@ -1404,6 +1447,37 @@ io.on("connection", socket => {
     }
 
     if (!tryAdvance(room)) broadcastRoom(room);
+  });
+
+  // ความสามารถตอนกลางวัน: ก็อตซิลล่ากำจัดคน (วันที่ 2+) / กิ่งก่าเลียนแบบบทบาท
+  on("dayAbility", data => {
+    const room = requireRoom(userId);
+    const player = room.players.find(p => p.id === userId);
+
+    if (room.phase !== "day" || !player.alive) throw new Error("ใช้ความสามารถนี้ได้เฉพาะช่วงสนทนากลางวัน");
+    if (player.blind || !["godzilla", "lizard"].includes(player.role)) throw new Error("คุณไม่มีความสามารถตอนกลางวัน");
+    if (player.dayUsed === room.round) throw new Error("วันนี้คุณใช้ความสามารถไปแล้ว");
+
+    const target = room.players.find(p => p.id === data.target && p.alive);
+    if (!target || target.id === userId) throw new Error("เป้าหมายไม่ถูกต้อง");
+    const targetName = getUser(target.id).name;
+
+    if (player.role === "godzilla") {
+      if (room.round < 2) throw new Error("ก็อตซิลล่าเริ่มกำจัดคนได้ตั้งแต่เช้าวันที่ 2");
+      player.dayUsed = room.round;
+      personal(player, `เช้าวันที่ ${room.round}: คุณกำจัด ${targetName}`);
+      eliminate(room, target, "ถูกก็อตซิลล่ากำจัด", [player.id]);
+      announceDeaths(room, "ก็อตซิลล่าบุกหมู่บ้าน!");
+      if (checkWin(room)) return;
+      sync(room);
+      return;
+    }
+
+    // กิ่งก่า: ผู้หยั่งรู้จะเห็นเป็นบทบาทของเป้าหมายที่เลียนแบบ (ลูกครึ่งเห็นเป็นชาวบ้าน นักคอสเพลย์เห็นเป็นหมาป่า)
+    player.dayUsed = room.round;
+    player.mimicRole = target.role;
+    personal(player, `เช้าวันที่ ${room.round}: คุณเลียนแบบ ${targetName} (บทบาท: ${ROLE_NAMES[target.role]}) ผู้หยั่งรู้จะเห็นคุณเป็นบทบาทนี้`);
+    broadcastRoom(room);
   });
 
   on("vote", data => {
